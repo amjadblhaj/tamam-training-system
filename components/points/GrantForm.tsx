@@ -1,0 +1,170 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useQuery } from "@tanstack/react-query";
+import { Search, User } from "lucide-react";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import {
+  grantPointsSchema,
+  GRANT_REASONS,
+  type GrantPointsFormInput,
+  type GrantPointsInput,
+} from "@/lib/validations/points";
+import { searchStudentsForGrant, grantPoints } from "@/app/(admin)/grant/actions";
+import type { StudentSearchResult } from "@/types";
+
+const inputClass =
+  "w-full rounded-lg border border-brand-border px-3 py-2 text-brand-text focus:border-brand-green focus:outline-none";
+
+export function GrantForm() {
+  const [search, setSearch] = useState("");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<StudentSearchResult | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [serverError, setServerError] = useState<string | null>(null);
+  const debouncedSearch = useDebouncedValue(search, 300);
+
+  const { data: results } = useQuery({
+    queryKey: ["grant-student-search", debouncedSearch],
+    queryFn: () => searchStudentsForGrant(debouncedSearch),
+    enabled: debouncedSearch.length > 0 && dropdownOpen,
+  });
+
+  const {
+    register,
+    handleSubmit,
+    control,
+    watch,
+    setValue,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<GrantPointsFormInput, unknown, GrantPointsInput>({
+    resolver: zodResolver(grantPointsSchema),
+    defaultValues: { reason: "course_registration" },
+  });
+
+  const reason = watch("reason");
+
+  useEffect(() => {
+    const preset = GRANT_REASONS.find((r) => r.value === reason);
+    if (preset?.defaultPoints) {
+      setValue("points", preset.defaultPoints as unknown as GrantPointsFormInput["points"]);
+    }
+  }, [reason, setValue]);
+
+  function selectStudent(student: StudentSearchResult) {
+    setSelectedStudent(student);
+    setValue("studentId", student.id as unknown as GrantPointsFormInput["studentId"]);
+    setSearch(student.full_name);
+    setDropdownOpen(false);
+  }
+
+  const onSubmit = handleSubmit(async (values) => {
+    setServerError(null);
+    setSuccessMessage(null);
+    const result = await grantPoints(values);
+    if (!result.success) {
+      setServerError(result.error ?? "حدث خطأ ما");
+      return;
+    }
+    setSuccessMessage(`تم منح النقاط لـ ${result.studentName}. الرصيد الجديد: ${result.newBalance}`);
+    setSelectedStudent(null);
+    setSearch("");
+    reset({ reason: "course_registration" });
+  });
+
+  return (
+    <div className="max-w-xl">
+      <form onSubmit={onSubmit} className="space-y-4">
+        <div className="relative">
+          <label className="mb-1 block text-sm font-medium text-brand-text">الطالب</label>
+          <div className="relative">
+            <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-text-3" />
+            <input
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setSelectedStudent(null);
+                setDropdownOpen(true);
+              }}
+              onFocus={() => setDropdownOpen(true)}
+              placeholder="ابحث بالاسم أو رقم الهاتف"
+              className={`${inputClass} pr-9`}
+            />
+          </div>
+          {dropdownOpen && results && results.length > 0 && (
+            <ul className="absolute z-10 mt-1 w-full rounded-lg border border-brand-border bg-brand-surface shadow-lg">
+              {results.map((s) => (
+                <li key={s.id}>
+                  <button
+                    type="button"
+                    onClick={() => selectStudent(s)}
+                    className="flex w-full items-center justify-between px-3 py-2 text-right text-sm hover:bg-brand-surface-3"
+                  >
+                    <span className="flex items-center gap-2 text-brand-text">
+                      <User size={14} className="text-brand-text-3" />
+                      {s.full_name} <span className="text-brand-text-3">({s.branch_name_ar})</span>
+                    </span>
+                    <span className="font-semibold text-brand-orange">{s.points}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {errors.studentId && <p className="mt-1 text-xs text-brand-orange">{errors.studentId.message}</p>}
+        </div>
+
+        {selectedStudent && (
+          <div className="rounded-lg border border-brand-border bg-brand-green-light px-3 py-2 text-sm text-brand-text">
+            الطالب المحدد: <span className="font-semibold">{selectedStudent.full_name}</span> — الرصيد الحالي:{" "}
+            <span className="font-semibold text-brand-orange">{selectedStudent.points}</span>
+          </div>
+        )}
+
+        <div>
+          <label className="mb-1 block text-sm font-medium text-brand-text">السبب</label>
+          <Controller
+            control={control}
+            name="reason"
+            render={({ field }) => (
+              <select {...field} className={inputClass}>
+                {GRANT_REASONS.map((r) => (
+                  <option key={r.value} value={r.value}>
+                    {r.label}
+                  </option>
+                ))}
+              </select>
+            )}
+          />
+        </div>
+
+        {reason === "custom" && (
+          <div>
+            <label className="mb-1 block text-sm font-medium text-brand-text">وصف السبب</label>
+            <input {...register("customReason")} className={inputClass} />
+            {errors.customReason && <p className="mt-1 text-xs text-brand-orange">{errors.customReason.message}</p>}
+          </div>
+        )}
+
+        <div>
+          <label className="mb-1 block text-sm font-medium text-brand-text">النقاط</label>
+          <input {...register("points")} type="number" min={1} max={9999} className={inputClass} />
+          {errors.points && <p className="mt-1 text-xs text-brand-orange">{errors.points.message}</p>}
+        </div>
+
+        {serverError && <p className="text-sm text-brand-orange">{serverError}</p>}
+        {successMessage && <p className="text-sm font-medium text-brand-green">{successMessage}</p>}
+
+        <button
+          type="submit"
+          disabled={isSubmitting || !selectedStudent}
+          className="w-full rounded-lg bg-brand-green py-2.5 font-semibold text-white transition-colors hover:bg-brand-green-dark disabled:opacity-60"
+        >
+          {isSubmitting ? "جاري المنح..." : "منح النقاط"}
+        </button>
+      </form>
+    </div>
+  );
+}
