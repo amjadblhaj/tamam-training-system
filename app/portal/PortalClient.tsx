@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getPortalBalance, getPortalRewards, getPortalTransactions, redeemReward } from "./actions";
 import { logout } from "@/app/login/actions";
+import { useToast } from "@/components/providers/toast-provider";
 import type { PortalReward, PortalTransaction } from "@/types";
 
 interface PortalClientProps {
@@ -20,7 +20,7 @@ export function PortalClient({
   initialTransactions,
 }: PortalClientProps) {
   const queryClient = useQueryClient();
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const toast = useToast();
 
   const { data: balance = initialBalance } = useQuery({
     queryKey: ["portal-balance"],
@@ -44,21 +44,17 @@ export function PortalClient({
     mutationFn: (rewardId: number) => redeemReward(rewardId),
     onSuccess: (result, rewardId) => {
       if (!result.success) {
-        setMessage({ type: "error", text: result.error ?? "حدث خطأ ما" });
+        toast.error(result.error ?? "حدث خطأ ما");
         return;
       }
       const reward = rewards.find((r) => r.id === rewardId);
-      setMessage({
-        type: "success",
-        text: `تم استبدال "${reward?.name_ar ?? ""}" بنجاح. رصيدك الجديد: ${result.newBalance}`,
-      });
+      toast.success(`تم استبدال "${reward?.name_ar ?? ""}" بنجاح. رصيدك الجديد: ${result.newBalance}`);
       queryClient.invalidateQueries({ queryKey: ["portal-balance"] });
       queryClient.invalidateQueries({ queryKey: ["portal-transactions"] });
     },
   });
 
   function handleRedeem(reward: PortalReward) {
-    setMessage(null);
     if (!confirm(`هل تريد استبدال "${reward.name_ar}" مقابل ${reward.points_required} نقطة؟`)) return;
     mutate(reward.id);
   }
@@ -97,16 +93,6 @@ export function PortalClient({
               : "كل المكافآت متاحة!"}
           </p>
         </div>
-
-        {message && (
-          <div
-            className={`mb-6 rounded-lg p-3 text-sm ${
-              message.type === "success" ? "bg-brand-green-light text-brand-green" : "bg-brand-orange-light text-brand-orange"
-            }`}
-          >
-            {message.text}
-          </div>
-        )}
 
         <div className="mb-8">
           <h2 className="mb-3 font-semibold text-brand-surface">المكافآت</h2>

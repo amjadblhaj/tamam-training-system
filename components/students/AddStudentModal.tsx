@@ -7,6 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { createStudentSchema, type CreateStudentInput, type CreateStudentFormInput } from "@/lib/validations/student";
 import { createStudent } from "@/app/(admin)/students/actions";
+import { useToast } from "@/components/providers/toast-provider";
 import type { Branch } from "@/types";
 
 const inputClass =
@@ -32,6 +33,7 @@ function Field({
 
 export function AddStudentModal({ branches, onClose }: { branches: Branch[]; onClose: () => void }) {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const [serverError, setServerError] = useState<string | null>(null);
   const {
     register,
@@ -49,6 +51,7 @@ export function AddStudentModal({ branches, onClose }: { branches: Branch[]; onC
       return;
     }
     queryClient.invalidateQueries({ queryKey: ["students"] });
+    toast.success("تمت إضافة الطالب بنجاح");
     onClose();
   });
 

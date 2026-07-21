@@ -13,20 +13,20 @@ import {
   type GrantPointsInput,
 } from "@/lib/validations/points";
 import { searchStudentsForGrant, grantPoints } from "@/app/(admin)/grant/actions";
+import { useToast } from "@/components/providers/toast-provider";
 import type { StudentSearchResult } from "@/types";
 
 const inputClass =
   "w-full rounded-lg border border-brand-border px-3 py-2 text-brand-text focus:border-brand-green focus:outline-none";
 
 export function GrantForm() {
+  const toast = useToast();
   const [search, setSearch] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<StudentSearchResult | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [serverError, setServerError] = useState<string | null>(null);
   const debouncedSearch = useDebouncedValue(search, 300);
 
-  const { data: results } = useQuery({
+  const { data: results, isFetching: isSearching } = useQuery({
     queryKey: ["grant-student-search", debouncedSearch],
     queryFn: () => searchStudentsForGrant(debouncedSearch),
     enabled: debouncedSearch.length > 0 && dropdownOpen,
@@ -62,14 +62,12 @@ export function GrantForm() {
   }
 
   const onSubmit = handleSubmit(async (values) => {
-    setServerError(null);
-    setSuccessMessage(null);
     const result = await grantPoints(values);
     if (!result.success) {
-      setServerError(result.error ?? "حدث خطأ ما");
+      toast.error(result.error ?? "حدث خطأ ما");
       return;
     }
-    setSuccessMessage(`تم منح النقاط لـ ${result.studentName}. الرصيد الجديد: ${result.newBalance}`);
+    toast.success(`تم منح النقاط لـ ${result.studentName}. الرصيد الجديد: ${result.newBalance}`);
     setSelectedStudent(null);
     setSearch("");
     reset({ reason: "course_registration" });
@@ -94,7 +92,12 @@ export function GrantForm() {
               className={`${inputClass} pr-9`}
             />
           </div>
-          {dropdownOpen && results && results.length > 0 && (
+          {dropdownOpen && isSearching && (
+            <div className="absolute z-10 mt-1 w-full rounded-lg border border-brand-border bg-brand-surface px-3 py-2 text-sm text-brand-text-3 shadow-lg">
+              جاري البحث...
+            </div>
+          )}
+          {dropdownOpen && !isSearching && results && results.length > 0 && (
             <ul className="absolute z-10 mt-1 w-full rounded-lg border border-brand-border bg-brand-surface shadow-lg">
               {results.map((s) => (
                 <li key={s.id}>
@@ -112,6 +115,11 @@ export function GrantForm() {
                 </li>
               ))}
             </ul>
+          )}
+          {dropdownOpen && !isSearching && results && results.length === 0 && debouncedSearch.length > 0 && (
+            <div className="absolute z-10 mt-1 w-full rounded-lg border border-brand-border bg-brand-surface px-3 py-2 text-sm text-brand-text-3 shadow-lg">
+              لا يوجد طلاب مطابقون
+            </div>
           )}
           {errors.studentId && <p className="mt-1 text-xs text-brand-orange">{errors.studentId.message}</p>}
         </div>
@@ -153,9 +161,6 @@ export function GrantForm() {
           <input {...register("points")} type="number" min={1} max={9999} className={inputClass} />
           {errors.points && <p className="mt-1 text-xs text-brand-orange">{errors.points.message}</p>}
         </div>
-
-        {serverError && <p className="text-sm text-brand-orange">{serverError}</p>}
-        {successMessage && <p className="text-sm font-medium text-brand-green">{successMessage}</p>}
 
         <button
           type="submit"

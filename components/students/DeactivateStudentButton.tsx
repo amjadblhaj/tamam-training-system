@@ -3,9 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { deactivateStudent } from "@/app/(admin)/students/actions";
+import { useToast } from "@/components/providers/toast-provider";
 
 export function DeactivateStudentButton({ studentId }: { studentId: number }) {
   const router = useRouter();
+  const toast = useToast();
   const [loading, setLoading] = useState(false);
 
   async function handleClick() {
@@ -13,10 +15,13 @@ export function DeactivateStudentButton({ studentId }: { studentId: number }) {
     setLoading(true);
     const result = await deactivateStudent(studentId);
     setLoading(false);
-    if (result.success) {
-      router.push("/students");
-      router.refresh();
+    if (!result.success) {
+      toast.error(result.error ?? "حدث خطأ ما");
+      return;
     }
+    toast.success("تم إلغاء تفعيل الطالب");
+    router.push("/students");
+    router.refresh();
   }
 
   return (

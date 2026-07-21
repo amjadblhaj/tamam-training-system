@@ -7,6 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { rewardSchema, type RewardInput, type RewardFormInput } from "@/lib/validations/reward";
 import { createReward, updateReward } from "@/app/(admin)/rewards/actions";
+import { useToast } from "@/components/providers/toast-provider";
 import type { Reward } from "@/types";
 
 const inputClass =
@@ -32,6 +33,7 @@ function Field({
 
 export function RewardModal({ reward, onClose }: { reward: Reward | null; onClose: () => void }) {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const [serverError, setServerError] = useState<string | null>(null);
   const {
     register,
@@ -57,6 +59,7 @@ export function RewardModal({ reward, onClose }: { reward: Reward | null; onClos
       return;
     }
     queryClient.invalidateQueries({ queryKey: ["rewards"] });
+    toast.success(reward ? "تم تحديث المكافأة بنجاح" : "تمت إضافة المكافأة بنجاح");
     onClose();
   });
 

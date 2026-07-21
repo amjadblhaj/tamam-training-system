@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Cairo } from "next/font/google";
 import "./globals.css";
 import { QueryProvider } from "@/components/providers/query-provider";
+import { ToastProvider } from "@/components/providers/toast-provider";
 
 const cairo = Cairo({
   subsets: ["arabic", "latin"],
@@ -22,7 +23,9 @@ export default function RootLayout({
   return (
     <html lang="ar" dir="rtl" className={cairo.variable}>
       <body className="font-sans antialiased bg-brand-surface-2 text-brand-text">
-        <QueryProvider>{children}</QueryProvider>
+        <QueryProvider>
+          <ToastProvider>{children}</ToastProvider>
+        </QueryProvider>
       </body>
     </html>
   );

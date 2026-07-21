@@ -6,24 +6,36 @@ import { Plus, Pencil, Trash2, Award } from "lucide-react";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { RewardModal } from "@/components/rewards/RewardModal";
 import { getRewards, toggleRewardActive, deleteReward } from "./actions";
+import { useToast } from "@/components/providers/toast-provider";
 import type { Reward } from "@/types";
 
 export function RewardsClient() {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingReward, setEditingReward] = useState<Reward | null>(null);
 
   const { data: rewards, isLoading } = useQuery({ queryKey: ["rewards"], queryFn: () => getRewards() });
 
   async function handleToggle(reward: Reward) {
-    await toggleRewardActive(reward.id, !reward.active);
+    const result = await toggleRewardActive(reward.id, !reward.active);
+    if (!result.success) {
+      toast.error(result.error ?? "حدث خطأ ما");
+      return;
+    }
     queryClient.invalidateQueries({ queryKey: ["rewards"] });
+    toast.info(reward.active ? "تم إلغاء تفعيل المكافأة" : "تم تفعيل المكافأة");
   }
 
   async function handleDelete(reward: Reward) {
     if (!confirm(`هل أنت متأكد من حذف مكافأة "${reward.name_ar}"؟`)) return;
-    await deleteReward(reward.id);
+    const result = await deleteReward(reward.id);
+    if (!result.success) {
+      toast.error(result.error ?? "حدث خطأ ما");
+      return;
+    }
     queryClient.invalidateQueries({ queryKey: ["rewards"] });
+    toast.success("تم حذف المكافأة");
   }
 
   function openAddModal() {
