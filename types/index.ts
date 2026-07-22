@@ -165,3 +165,12 @@ export interface RedeemResult {
   error?: string;
   newBalance?: number;
 }
+
+export interface StaffRow {
+  id: string;
+  username: string;
+  role: string;
+  branch_id: number | null;
+  branch_name_ar: string | null;
+  active: boolean;
+}
