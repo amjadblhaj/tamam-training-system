@@ -5,6 +5,19 @@ export interface Branch {
   active: boolean;
 }
 
+export interface BranchWithStats {
+  id: number;
+  name_ar: string;
+  active: boolean;
+  student_count: number;
+}
+
+export interface BranchLimitInfo {
+  branches: BranchWithStats[];
+  used: number;
+  max: number; // -1 = unlimited
+}
+
 export interface StudentRow {
   id: number;
   full_name: string;
@@ -211,7 +224,6 @@ export interface CreateTenantInput {
   ownerName: string;
   ownerEmail: string;
   ownerPhone?: string;
-  plan: "basic" | "standard" | "pro";
   trialDays: number;
   adminUsername: string;
   adminPassword: string;

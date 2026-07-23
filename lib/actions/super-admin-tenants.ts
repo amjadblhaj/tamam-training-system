@@ -106,13 +106,8 @@ export async function createTenant(input: CreateTenantInput): Promise<CreateTena
     return { success: false, error: "اسم المستخدم مستخدم بالفعل" };
   }
 
-  const planLimits: Record<string, { maxBranches: number; maxStudents: number }> = {
-    basic: { maxBranches: 5, maxStudents: 500 },
-    standard: { maxBranches: 10, maxStudents: 1500 },
-    pro: { maxBranches: -1, maxStudents: -1 },
-  };
-  const limits = planLimits[input.plan] ?? planLimits.basic;
-
+  // Starting limits for a new tenant — no plan/pricing tiers anymore, the
+  // super admin adjusts max_branches per tenant directly (Set Max Branches).
   const { data: tenant, error: tenantError } = await db
     .from("tenants")
     .insert({
@@ -121,9 +116,9 @@ export async function createTenant(input: CreateTenantInput): Promise<CreateTena
       owner_name: input.ownerName,
       owner_email: input.ownerEmail,
       owner_phone: input.ownerPhone || null,
-      plan: input.plan,
-      max_branches: limits.maxBranches,
-      max_students: limits.maxStudents,
+      plan: "basic",
+      max_branches: 5,
+      max_students: 500,
       status: "trial",
       trial_ends_at: new Date(Date.now() + input.trialDays * 24 * 60 * 60 * 1000).toISOString(),
     })
@@ -134,12 +129,14 @@ export async function createTenant(input: CreateTenantInput): Promise<CreateTena
     return { success: false, error: "حدث خطأ أثناء إنشاء الحساب" };
   }
 
-  // Every tenant needs at least one branch to be able to add students —
-  // there's no separate branch-management UI in this app (branches were
-  // originally fixed/seeded, never user-managed), so seed one default.
+  // Every tenant needs at least one branch to be able to add students.
+  // `name` is never displayed anywhere (only name_ar is) but has a UNIQUE
+  // constraint — a literal "main" here collided across tenants (a real bug:
+  // the second tenant created after the first would fail this insert), so
+  // generate a unique value instead.
   const { data: branch, error: branchError } = await db
     .from("branches")
-    .insert({ name: "main", name_ar: "الفرع الرئيسي", tenant_id: tenant.id })
+    .insert({ name: `branch-${crypto.randomUUID()}`, name_ar: "الفرع الرئيسي", tenant_id: tenant.id })
     .select("id")
     .single();
 
@@ -185,18 +182,33 @@ export async function createTenant(input: CreateTenantInput): Promise<CreateTena
 
 export async function activateTenantSubscription(
   tenantId: string,
-  input: { plan: string; months: number; paymentRef?: string }
+  input: { months: number; paymentRef?: string }
 ): Promise<ActionResult> {
   const saSession = await requireSuperAdmin();
   const db = getSupabaseAdmin();
-  const { data, error } = await db.rpc("activate_subscription", {
-    p_tenant_id: tenantId,
-    p_plan: input.plan,
-    p_months: input.months,
-    p_payment_ref: input.paymentRef || null,
-    p_created_by: saSession.username,
+
+  // No plan/pricing tiers — this just sets the tenant active with a new
+  // expiry date. max_branches/max_students are managed separately (Set Max
+  // Branches), not derived from a plan here.
+  const endsAt = new Date(Date.now() + input.months * 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  const { error: updateError } = await db
+    .from("tenants")
+    .update({ status: "active", subscription_ends_at: endsAt })
+    .eq("id", tenantId);
+  if (updateError) return { success: false, error: "حدث خطأ ما" };
+
+  await db.from("subscriptions").insert({
+    tenant_id: tenantId,
+    plan: "basic",
+    amount: null,
+    status: "active",
+    payment_ref: input.paymentRef || null,
+    starts_at: new Date().toISOString(),
+    ends_at: endsAt,
+    created_by: saSession.username,
   });
-  if (error || !data?.success) return { success: false, error: data?.error ?? "حدث خطأ ما" };
+
   return { success: true };
 }
 
@@ -218,14 +230,14 @@ export async function reactivateTenantAccount(tenantId: string, months: number):
 
 export async function addTenantBranchAddon(
   tenantId: string,
-  input: { branches: number; amount: number; paymentRef?: string }
+  input: { branches: number; paymentRef?: string }
 ): Promise<ActionResult> {
   const saSession = await requireSuperAdmin();
   const db = getSupabaseAdmin();
   const { data, error } = await db.rpc("add_branch_addon", {
     p_tenant_id: tenantId,
     p_branches: input.branches,
-    p_amount: input.amount,
+    p_amount: 0,
     p_payment_ref: input.paymentRef || null,
     p_created_by: saSession.username,
   });

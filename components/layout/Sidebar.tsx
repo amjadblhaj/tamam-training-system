@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
+  Building2,
   Gift,
   FileSpreadsheet,
   ClipboardList,
@@ -24,6 +25,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "لوحة التحكم", icon: LayoutDashboard },
   { href: "/students", label: "الطلاب", icon: Users },
+  { href: "/branches", label: "الفروع", icon: Building2 },
   { href: "/grant", label: "منح النقاط", icon: Gift },
   { href: "/excel", label: "استيراد إكسل", icon: FileSpreadsheet },
   { href: "/activity", label: "سجل النشاط", icon: ClipboardList },

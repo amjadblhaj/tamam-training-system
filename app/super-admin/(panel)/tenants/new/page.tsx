@@ -16,7 +16,6 @@ const schema = z.object({
   ownerName: z.string().min(2, "اسم المالك مطلوب"),
   ownerEmail: z.string().email("بريد إلكتروني غير صحيح"),
   ownerPhone: z.string().optional(),
-  plan: z.enum(["basic", "standard", "pro"]),
   trialDays: z.coerce.number().int().positive(),
   adminUsername: z.string().min(3, "اسم المستخدم يجب أن يتكون من 3 أحرف على الأقل"),
   adminPassword: z.string().min(6, "كلمة المرور يجب ألا تقل عن 6 أحرف"),
@@ -50,7 +49,7 @@ export default function NewTenantPage() {
     formState: { errors, isSubmitting },
   } = useForm<FormInput, unknown, FormOutput>({
     resolver: zodResolver(schema),
-    defaultValues: { plan: "basic", trialDays: 14 },
+    defaultValues: { trialDays: 14 },
   });
 
   const onSubmit = handleSubmit(async (values) => {
@@ -122,13 +121,6 @@ export default function NewTenantPage() {
         </Field>
         <Field label="رقم الهاتف (اختياري)" error={errors.ownerPhone?.message}>
           <input {...register("ownerPhone")} className={inputClass} />
-        </Field>
-        <Field label="الخطة" error={errors.plan?.message}>
-          <select {...register("plan")} className={inputClass}>
-            <option value="basic">أساسية — 300 د.ل / سنة</option>
-            <option value="standard">متوسطة — 500 د.ل / سنة</option>
-            <option value="pro">متقدمة — 800 د.ل / سنة</option>
-          </select>
         </Field>
         <Field label="مدة الفترة التجريبية" error={errors.trialDays?.message}>
           <select {...register("trialDays")} className={inputClass}>

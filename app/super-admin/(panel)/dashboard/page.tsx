@@ -23,7 +23,6 @@ export default async function SuperAdminDashboardPage() {
           <thead>
             <tr className="border-b border-brand-border text-right text-brand-text-2">
               <th className="px-4 py-3 font-medium">الأكاديمية</th>
-              <th className="px-4 py-3 font-medium">الخطة</th>
               <th className="px-4 py-3 font-medium">الحالة</th>
               <th className="px-4 py-3 font-medium">الطلاب</th>
               <th className="px-4 py-3 font-medium"></th>
@@ -33,7 +32,6 @@ export default async function SuperAdminDashboardPage() {
             {tenants.map((t) => (
               <tr key={t.id} className="border-b border-brand-border last:border-0">
                 <td className="px-4 py-3 text-brand-text">{t.academy_name}</td>
-                <td className="px-4 py-3 text-brand-text-2">{t.plan}</td>
                 <td className="px-4 py-3">
                   <TenantStatusBadge status={t.status} />
                 </td>

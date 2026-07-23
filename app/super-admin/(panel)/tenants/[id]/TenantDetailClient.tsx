@@ -48,14 +48,13 @@ function ModalShell({ title, onClose, children }: { title: string; onClose: () =
 
 function ActivateModal({ tenantId, onClose, onDone }: { tenantId: string; onClose: () => void; onDone: () => void }) {
   const toast = useToast();
-  const [plan, setPlan] = useState("basic");
   const [months, setMonths] = useState(12);
   const [paymentRef, setPaymentRef] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function handleConfirm() {
     setLoading(true);
-    const result = await activateTenantSubscription(tenantId, { plan, months, paymentRef });
+    const result = await activateTenantSubscription(tenantId, { months, paymentRef });
     setLoading(false);
     if (!result.success) {
       toast.error(result.error ?? "حدث خطأ ما");
@@ -68,13 +67,6 @@ function ActivateModal({ tenantId, onClose, onDone }: { tenantId: string; onClos
   return (
     <ModalShell title="تفعيل اشتراك" onClose={onClose}>
       <div className="space-y-4">
-        <Field label="الخطة">
-          <select value={plan} onChange={(e) => setPlan(e.target.value)} className={inputClass}>
-            <option value="basic">أساسية — 300 د.ل</option>
-            <option value="standard">متوسطة — 500 د.ل</option>
-            <option value="pro">متقدمة — 800 د.ل</option>
-          </select>
-        </Field>
         <Field label="المدة">
           <select value={months} onChange={(e) => setMonths(Number(e.target.value))} className={inputClass}>
             <option value={12}>12 شهر</option>
@@ -140,13 +132,12 @@ function ReactivateModal({ tenantId, onClose, onDone }: { tenantId: string; onCl
 function AddonModal({ tenantId, onClose, onDone }: { tenantId: string; onClose: () => void; onDone: () => void }) {
   const toast = useToast();
   const [branches, setBranches] = useState(1);
-  const [amount, setAmount] = useState(50);
   const [paymentRef, setPaymentRef] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function handleConfirm() {
     setLoading(true);
-    const result = await addTenantBranchAddon(tenantId, { branches, amount, paymentRef });
+    const result = await addTenantBranchAddon(tenantId, { branches, paymentRef });
     setLoading(false);
     if (!result.success) {
       toast.error(result.error ?? "حدث خطأ ما");
@@ -165,15 +156,6 @@ function AddonModal({ tenantId, onClose, onDone }: { tenantId: string; onClose: 
             min={1}
             value={branches}
             onChange={(e) => setBranches(Number(e.target.value))}
-            className={inputClass}
-          />
-        </Field>
-        <Field label="المبلغ (د.ل)">
-          <input
-            type="number"
-            min={0}
-            value={amount}
-            onChange={(e) => setAmount(Number(e.target.value))}
             className={inputClass}
           />
         </Field>
@@ -450,7 +432,6 @@ export function TenantDetailClient({ tenant }: { tenant: TenantDetail }) {
             <TenantStatusBadge status={tenant.status} />
           </div>
           <div className="space-y-1.5 text-sm text-brand-text-2">
-            <p>الخطة: <span className="text-brand-text">{tenant.plan}</span></p>
             <p>
               الفروع: <span className="text-brand-text">{tenant.branches_used} / {tenant.total_branches_allowed === -1 ? "غير محدود" : tenant.total_branches_allowed}</span>
             </p>
@@ -463,7 +444,6 @@ export function TenantDetailClient({ tenant }: { tenant: TenantDetail }) {
                 {daysLeft <= 0 ? "منتهٍ" : `${daysLeft} ${daysLeft === 1 ? "يوم" : "أيام"}`}
               </p>
             )}
-            <p>إجمالي المدفوع: <span className="text-brand-text">{tenant.total_paid} د.ل</span></p>
           </div>
         </div>
       </div>
@@ -526,9 +506,9 @@ export function TenantDetailClient({ tenant }: { tenant: TenantDetail }) {
             {tenant.subscriptions.map((s) => (
               <li key={s.id} className="flex items-center justify-between rounded-lg bg-brand-surface-3 px-3 py-2">
                 <span className="text-brand-text">
-                  {s.plan} — {s.amount} {s.currency}
+                  {new Date(s.starts_at).toLocaleDateString("ar")} — {s.ends_at ? new Date(s.ends_at).toLocaleDateString("ar") : "بدون تاريخ انتهاء"}
                 </span>
-                <span className="text-brand-text-2">{new Date(s.starts_at).toLocaleDateString("ar")}</span>
+                {s.payment_ref && <span className="text-brand-text-2">{s.payment_ref}</span>}
               </li>
             ))}
           </ul>
