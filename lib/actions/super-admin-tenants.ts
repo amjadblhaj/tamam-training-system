@@ -240,3 +240,37 @@ export async function extendTenantTrial(tenantId: string, days: number): Promise
   if (error || !data?.success) return { success: false, error: "حدث خطأ ما" };
   return { success: true };
 }
+
+export async function setTenantMaxBranches(tenantId: string, maxBranches: number): Promise<ActionResult> {
+  await requireSuperAdmin();
+  if (!Number.isInteger(maxBranches) || (maxBranches < 1 && maxBranches !== -1)) {
+    return { success: false, error: "قيمة غير صحيحة" };
+  }
+  const db = getSupabaseAdmin();
+  const { error } = await db.from("tenants").update({ max_branches: maxBranches }).eq("id", tenantId);
+  if (error) return { success: false, error: "حدث خطأ ما" };
+  return { success: true };
+}
+
+export async function resetStaffPassword(staffId: string, newPassword: string): Promise<ActionResult> {
+  await requireSuperAdmin();
+  if (!newPassword || newPassword.length < 6) {
+    return { success: false, error: "كلمة المرور يجب ألا تقل عن 6 أحرف" };
+  }
+  const db = getSupabaseAdmin();
+  const hashed = await bcrypt.hash(newPassword, 12);
+  const { error } = await db.from("staff").update({ password: hashed }).eq("id", staffId);
+  if (error) return { success: false, error: "حدث خطأ ما" };
+  return { success: true };
+}
+
+export async function deleteTenant(tenantId: string): Promise<ActionResult> {
+  await requireSuperAdmin();
+  const db = getSupabaseAdmin();
+  // Cascades to branches/staff/students/rewards/points_log/redemptions/
+  // subscriptions/branch_addons via ON DELETE CASCADE (schema.sql + the
+  // Mazaya migration) — deleting the tenant row is sufficient.
+  const { error } = await db.from("tenants").delete().eq("id", tenantId);
+  if (error) return { success: false, error: "حدث خطأ أثناء حذف الحساب" };
+  return { success: true };
+}

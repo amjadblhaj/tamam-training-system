@@ -5,7 +5,19 @@ import Link from "next/link";
 import { Plus, Search, Building2 } from "lucide-react";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TenantStatusBadge } from "@/components/super-admin/TenantStatusBadge";
+import { getDaysRemaining } from "@/lib/tenant/access";
 import type { TenantRow } from "@/types";
+
+function DaysRemainingCell({ tenant }: { tenant: TenantRow }) {
+  const days = getDaysRemaining(tenant);
+  if (days === null) return <span className="text-brand-text-3">—</span>;
+  if (days <= 0) return <span className="font-semibold text-brand-orange">منتهٍ</span>;
+  return (
+    <span className={days <= 7 ? "font-semibold text-brand-orange" : "text-brand-text-2"}>
+      {days} {days === 1 ? "يوم" : "أيام"}
+    </span>
+  );
+}
 
 export function TenantsClient({ initialTenants }: { initialTenants: TenantRow[] }) {
   const [search, setSearch] = useState("");
@@ -48,6 +60,7 @@ export function TenantsClient({ initialTenants }: { initialTenants: TenantRow[] 
                 <th className="px-4 py-3 font-medium">المالك</th>
                 <th className="px-4 py-3 font-medium">الخطة</th>
                 <th className="px-4 py-3 font-medium">الحالة</th>
+                <th className="px-4 py-3 font-medium">الأيام المتبقية</th>
                 <th className="px-4 py-3 font-medium">الطلاب</th>
                 <th className="px-4 py-3 font-medium"></th>
               </tr>
@@ -60,6 +73,9 @@ export function TenantsClient({ initialTenants }: { initialTenants: TenantRow[] 
                   <td className="px-4 py-3 text-brand-text-2">{t.plan}</td>
                   <td className="px-4 py-3">
                     <TenantStatusBadge status={t.status} />
+                  </td>
+                  <td className="px-4 py-3">
+                    <DaysRemainingCell tenant={t} />
                   </td>
                   <td className="px-4 py-3 text-brand-text-2">{t.students_count}</td>
                   <td className="px-4 py-3">

@@ -2,15 +2,19 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { X } from "lucide-react";
+import { X, KeyRound } from "lucide-react";
 import { TenantStatusBadge } from "@/components/super-admin/TenantStatusBadge";
 import { useToast } from "@/components/providers/toast-provider";
+import { getDaysRemaining } from "@/lib/tenant/access";
 import {
   activateTenantSubscription,
   suspendTenantAccount,
   reactivateTenantAccount,
   addTenantBranchAddon,
   extendTenantTrial,
+  setTenantMaxBranches,
+  resetStaffPassword,
+  deleteTenant,
 } from "@/lib/actions/super-admin-tenants";
 import type { TenantDetail } from "@/types";
 
@@ -229,14 +233,181 @@ function ExtendTrialModal({ tenantId, onClose, onDone }: { tenantId: string; onC
   );
 }
 
+function MaxBranchesModal({
+  tenantId,
+  currentMax,
+  onClose,
+  onDone,
+}: {
+  tenantId: string;
+  currentMax: number;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const toast = useToast();
+  const [unlimited, setUnlimited] = useState(currentMax === -1);
+  const [maxBranches, setMaxBranches] = useState(currentMax === -1 ? 5 : currentMax);
+  const [loading, setLoading] = useState(false);
+
+  async function handleConfirm() {
+    setLoading(true);
+    const result = await setTenantMaxBranches(tenantId, unlimited ? -1 : maxBranches);
+    setLoading(false);
+    if (!result.success) {
+      toast.error(result.error ?? "حدث خطأ ما");
+      return;
+    }
+    toast.success("تم تحديث الحد الأقصى للفروع");
+    onDone();
+  }
+
+  return (
+    <ModalShell title="تعديل الحد الأقصى للفروع" onClose={onClose}>
+      <div className="space-y-4">
+        <label className="flex items-center gap-2 text-sm text-brand-text">
+          <input type="checkbox" checked={unlimited} onChange={(e) => setUnlimited(e.target.checked)} />
+          غير محدود
+        </label>
+        {!unlimited && (
+          <Field label="الحد الأقصى لعدد الفروع">
+            <input
+              type="number"
+              min={1}
+              value={maxBranches}
+              onChange={(e) => setMaxBranches(Number(e.target.value))}
+              className={inputClass}
+            />
+          </Field>
+        )}
+        <button
+          onClick={handleConfirm}
+          disabled={loading}
+          className="w-full rounded-lg bg-brand-green py-2.5 font-semibold text-white transition-colors hover:bg-brand-green-dark disabled:opacity-60"
+        >
+          {loading ? "جاري الحفظ..." : "حفظ"}
+        </button>
+      </div>
+    </ModalShell>
+  );
+}
+
+function ResetPasswordModal({
+  staffId,
+  username,
+  onClose,
+  onDone,
+}: {
+  staffId: string;
+  username: string;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const toast = useToast();
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleConfirm() {
+    if (password.length < 6) {
+      toast.error("كلمة المرور يجب ألا تقل عن 6 أحرف");
+      return;
+    }
+    setLoading(true);
+    const result = await resetStaffPassword(staffId, password);
+    setLoading(false);
+    if (!result.success) {
+      toast.error(result.error ?? "حدث خطأ ما");
+      return;
+    }
+    toast.success(`تم تغيير كلمة مرور "${username}" بنجاح`);
+    onDone();
+  }
+
+  return (
+    <ModalShell title={`تغيير كلمة مرور: ${username}`} onClose={onClose}>
+      <div className="space-y-4">
+        <Field label="كلمة المرور الجديدة">
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className={inputClass}
+          />
+        </Field>
+        <button
+          onClick={handleConfirm}
+          disabled={loading}
+          className="w-full rounded-lg bg-brand-green py-2.5 font-semibold text-white transition-colors hover:bg-brand-green-dark disabled:opacity-60"
+        >
+          {loading ? "جاري الحفظ..." : "حفظ كلمة المرور"}
+        </button>
+      </div>
+    </ModalShell>
+  );
+}
+
+function DeleteTenantModal({
+  tenantId,
+  academyName,
+  onClose,
+  onDeleted,
+}: {
+  tenantId: string;
+  academyName: string;
+  onClose: () => void;
+  onDeleted: () => void;
+}) {
+  const toast = useToast();
+  const [confirmText, setConfirmText] = useState("");
+  const [loading, setLoading] = useState(false);
+  const canDelete = confirmText.trim() === academyName;
+
+  async function handleConfirm() {
+    if (!canDelete) return;
+    setLoading(true);
+    const result = await deleteTenant(tenantId);
+    setLoading(false);
+    if (!result.success) {
+      toast.error(result.error ?? "حدث خطأ ما");
+      return;
+    }
+    toast.success("تم حذف الحساب نهائيًا");
+    onDeleted();
+  }
+
+  return (
+    <ModalShell title="حذف الحساب نهائيًا" onClose={onClose}>
+      <div className="space-y-4">
+        <p className="text-sm text-brand-orange">
+          هذا الإجراء نهائي ولا يمكن التراجع عنه. سيتم حذف جميع بيانات &quot;{academyName}&quot; (الطلاب، الفروع،
+          الموظفون، سجل النقاط، المكافآت) بشكل دائم.
+        </p>
+        <Field label={`اكتب اسم الأكاديمية للتأكيد: "${academyName}"`}>
+          <input value={confirmText} onChange={(e) => setConfirmText(e.target.value)} className={inputClass} />
+        </Field>
+        <button
+          onClick={handleConfirm}
+          disabled={!canDelete || loading}
+          className="w-full rounded-lg bg-brand-orange py-2.5 font-semibold text-white transition-colors hover:opacity-90 disabled:opacity-40"
+        >
+          {loading ? "جاري الحذف..." : "حذف نهائيًا"}
+        </button>
+      </div>
+    </ModalShell>
+  );
+}
+
 export function TenantDetailClient({ tenant }: { tenant: TenantDetail }) {
   const router = useRouter();
   const toast = useToast();
-  const [activeModal, setActiveModal] = useState<"activate" | "reactivate" | "addon" | "extend" | null>(null);
+  const [activeModal, setActiveModal] = useState<
+    "activate" | "reactivate" | "addon" | "extend" | "maxBranches" | "delete" | null
+  >(null);
+  const [resetPasswordTarget, setResetPasswordTarget] = useState<{ id: string; username: string } | null>(null);
   const [suspending, setSuspending] = useState(false);
 
   function refresh() {
     setActiveModal(null);
+    setResetPasswordTarget(null);
     router.refresh();
   }
 
@@ -253,8 +424,7 @@ export function TenantDetailClient({ tenant }: { tenant: TenantDetail }) {
     router.refresh();
   }
 
-  const expiryDate = tenant.status === "trial" ? tenant.trial_ends_at : tenant.subscription_ends_at;
-  const daysLeft = expiryDate ? Math.ceil((new Date(expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
+  const daysLeft = getDaysRemaining(tenant);
 
   return (
     <div>
@@ -287,9 +457,10 @@ export function TenantDetailClient({ tenant }: { tenant: TenantDetail }) {
             <p>
               الطلاب: <span className="text-brand-text">{tenant.students_count} / {tenant.max_students === -1 ? "غير محدود" : tenant.max_students}</span>
             </p>
-            {expiryDate && daysLeft !== null && (
+            {daysLeft !== null && (
               <p className={daysLeft <= 7 ? "font-semibold text-brand-orange" : ""}>
-                {tenant.status === "trial" ? "تنتهي التجربة خلال" : "ينتهي الاشتراك خلال"} {daysLeft} {daysLeft === 1 ? "يوم" : "أيام"}
+                {tenant.status === "trial" ? "تنتهي التجربة خلال" : "ينتهي الاشتراك خلال"}{" "}
+                {daysLeft <= 0 ? "منتهٍ" : `${daysLeft} ${daysLeft === 1 ? "يوم" : "أيام"}`}
               </p>
             )}
             <p>إجمالي المدفوع: <span className="text-brand-text">{tenant.total_paid} د.ل</span></p>
@@ -333,6 +504,18 @@ export function TenantDetailClient({ tenant }: { tenant: TenantDetail }) {
               تمديد التجربة
             </button>
           )}
+          <button
+            onClick={() => setActiveModal("maxBranches")}
+            className="rounded-lg border border-brand-border px-4 py-2 text-sm font-semibold text-brand-text-2 transition-colors hover:bg-brand-surface-3"
+          >
+            تعديل الحد الأقصى للفروع
+          </button>
+          <button
+            onClick={() => setActiveModal("delete")}
+            className="rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-white transition-colors hover:opacity-90"
+          >
+            حذف الحساب
+          </button>
         </div>
       </div>
 
@@ -361,7 +544,16 @@ export function TenantDetailClient({ tenant }: { tenant: TenantDetail }) {
             {tenant.staff.map((s) => (
               <li key={s.id} className="flex items-center justify-between rounded-lg bg-brand-surface-3 px-3 py-2">
                 <span className="text-brand-text">{s.username}</span>
-                <span className="text-brand-text-2">{s.role === "admin" ? "مدير" : "موظف"}</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-brand-text-2">{s.role === "admin" ? "مدير" : "موظف"}</span>
+                  <button
+                    onClick={() => setResetPasswordTarget({ id: s.id, username: s.username })}
+                    className="flex items-center gap-1 text-brand-orange hover:underline"
+                    title="تغيير كلمة المرور"
+                  >
+                    <KeyRound size={14} />
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
@@ -381,6 +573,30 @@ export function TenantDetailClient({ tenant }: { tenant: TenantDetail }) {
       )}
       {activeModal === "extend" && (
         <ExtendTrialModal tenantId={tenant.id} onClose={() => setActiveModal(null)} onDone={refresh} />
+      )}
+      {activeModal === "maxBranches" && (
+        <MaxBranchesModal
+          tenantId={tenant.id}
+          currentMax={tenant.max_branches}
+          onClose={() => setActiveModal(null)}
+          onDone={refresh}
+        />
+      )}
+      {activeModal === "delete" && (
+        <DeleteTenantModal
+          tenantId={tenant.id}
+          academyName={tenant.academy_name}
+          onClose={() => setActiveModal(null)}
+          onDeleted={() => router.push("/super-admin/tenants")}
+        />
+      )}
+      {resetPasswordTarget && (
+        <ResetPasswordModal
+          staffId={resetPasswordTarget.id}
+          username={resetPasswordTarget.username}
+          onClose={() => setResetPasswordTarget(null)}
+          onDone={refresh}
+        />
       )}
     </div>
   );
