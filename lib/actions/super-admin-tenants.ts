@@ -21,6 +21,13 @@ async function requireSuperAdmin() {
 
 const STATUS_PRIORITY: Record<string, number> = { suspended: 0, expired: 1, trial: 2, active: 3 };
 
+// tenant_stats (the SQL view) exposes the tenant's id as `tenant_id`, not
+// `id` — map it explicitly rather than force-casting, which previously left
+// `id` as `undefined` on every row (broke every "عرض" link on this page).
+function mapTenantStatsRow(row: Record<string, unknown>): TenantRow {
+  return { ...row, id: row.tenant_id } as unknown as TenantRow;
+}
+
 export async function getDashboardStats(): Promise<SuperAdminDashboardStats> {
   await requireSuperAdmin();
   const db = getSupabaseAdmin();
@@ -39,7 +46,7 @@ export async function getTenants(): Promise<TenantRow[]> {
   await requireSuperAdmin();
   const db = getSupabaseAdmin();
   const { data } = await db.from("tenant_stats").select("*");
-  const rows = (data ?? []) as unknown as TenantRow[];
+  const rows = (data ?? []).map(mapTenantStatsRow);
   return rows.sort((a, b) => (STATUS_PRIORITY[a.status] ?? 9) - (STATUS_PRIORITY[b.status] ?? 9));
 }
 
@@ -47,8 +54,9 @@ export async function getTenantDetail(tenantId: string): Promise<TenantDetail | 
   await requireSuperAdmin();
   const db = getSupabaseAdmin();
 
-  const { data: tenant } = await db.from("tenant_stats").select("*").eq("tenant_id", tenantId).maybeSingle();
-  if (!tenant) return null;
+  const { data: rawTenant } = await db.from("tenant_stats").select("*").eq("tenant_id", tenantId).maybeSingle();
+  if (!rawTenant) return null;
+  const tenant = mapTenantStatsRow(rawTenant);
 
   const [{ data: subscriptions }, { data: staff }] = await Promise.all([
     db.from("subscriptions").select("*").eq("tenant_id", tenantId).order("created_at", { ascending: false }),
@@ -65,7 +73,7 @@ export async function getTenantDetail(tenantId: string): Promise<TenantDetail | 
   }));
 
   return {
-    ...(tenant as unknown as TenantRow),
+    ...tenant,
     subscriptions: subscriptions ?? [],
     staff: staffRows,
   };

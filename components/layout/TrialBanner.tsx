@@ -2,8 +2,7 @@
 
 import { useReadOnly } from "@/hooks/useReadOnly";
 
-// TODO: replace with the real Mazaya support WhatsApp number.
-const WHATSAPP_NUMBER = "YOUR_WHATSAPP_NUMBER";
+const WHATSAPP_NUMBER = "218943643738";
 
 export function TrialBanner() {
   const { status, trialEndsAt } = useReadOnly();
