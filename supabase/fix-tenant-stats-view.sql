@@ -1,6 +1,14 @@
 -- Fixes "Invalid Date" on the Super Admin tenant detail page — the
--- tenant_stats view never selected t.created_at. Safe to re-run.
-CREATE OR REPLACE VIEW tenant_stats AS
+-- tenant_stats view never selected t.created_at.
+--
+-- CREATE OR REPLACE VIEW only allows adding columns at the END of the list
+-- (Postgres tracks view columns by position), and created_at needs to sit
+-- earlier for readability, so this drops and recreates the view instead.
+-- Safe: nothing else references tenant_stats via foreign key, it's only
+-- ever queried directly by the app.
+DROP VIEW IF EXISTS tenant_stats;
+
+CREATE VIEW tenant_stats AS
 SELECT
   t.id                                                              AS tenant_id,
   t.academy_name,
