@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { getStudentById, getStudentPointsHistory, getStudentRedemptions } from "../actions";
+import { getBranches } from "@/lib/actions/branches";
 import { DeactivateStudentButton } from "@/components/students/DeactivateStudentButton";
+import { TransferStudentButton } from "@/components/students/TransferStudentModal";
 
 export default async function StudentDetailPage({ params }: { params: { id: string } }) {
   const id = Number(params.id);
@@ -9,9 +11,10 @@ export default async function StudentDetailPage({ params }: { params: { id: stri
   const student = await getStudentById(id);
   if (!student) notFound();
 
-  const [history, redemptions] = await Promise.all([
+  const [history, redemptions, branches] = await Promise.all([
     getStudentPointsHistory(id),
     getStudentRedemptions(id),
+    getBranches(),
   ]);
 
   return (
@@ -24,7 +27,12 @@ export default async function StudentDetailPage({ params }: { params: { id: stri
           </p>
           <p className="mt-3 text-3xl font-bold text-brand-orange">{student.points} نقطة</p>
         </div>
-        {student.active && <DeactivateStudentButton studentId={student.id} />}
+        {student.active && (
+          <div className="flex items-center gap-2">
+            <TransferStudentButton studentId={student.id} currentBranchId={student.branch_id} branches={branches} />
+            <DeactivateStudentButton studentId={student.id} />
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

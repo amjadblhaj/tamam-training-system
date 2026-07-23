@@ -139,16 +139,6 @@ function StudentLoginForm() {
         />
         {errors.phone && <p className="mt-1 text-xs text-brand-orange">{errors.phone.message}</p>}
       </div>
-      <div>
-        <label className="mb-1 block text-sm font-medium text-brand-text">كلمة المرور</label>
-        <input
-          {...register("password")}
-          type="password"
-          autoComplete="current-password"
-          className="w-full rounded-lg border border-brand-border px-3 py-2 text-brand-text focus:border-brand-green focus:outline-none"
-        />
-        {errors.password && <p className="mt-1 text-xs text-brand-orange">{errors.password.message}</p>}
-      </div>
       {serverError && <p className="text-sm text-brand-orange">{serverError}</p>}
       <button
         type="submit"

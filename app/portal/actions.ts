@@ -3,7 +3,7 @@
 import { getSupabaseAdmin } from "@/lib/supabase/server";
 import { getSession } from "@/lib/auth/get-session";
 import { assertTenantCanWrite } from "@/lib/tenant/resolve-status";
-import type { PortalReward, PortalTransaction, RedeemResult } from "@/types";
+import type { PortalReward, PortalTransaction, RedeemResult, LeaderboardEntry } from "@/types";
 import type { SessionPayload } from "@/lib/auth/session";
 
 // Every function here derives the student id/tenant from the session itself
@@ -54,6 +54,39 @@ export async function getPortalTransactions(): Promise<PortalTransaction[]> {
     .order("created_at", { ascending: false })
     .limit(20);
   return data ?? [];
+}
+
+export async function getBranchLeaderboard(): Promise<LeaderboardEntry[]> {
+  const session = await requireStudentSession();
+  const db = getSupabaseAdmin();
+  const { data } = await db
+    .from("students")
+    .select("id, full_name, points")
+    .eq("tenant_id", session.tenantId)
+    .eq("branch_id", session.branchId)
+    .eq("active", true)
+    .order("points", { ascending: false })
+    .limit(10);
+  return data ?? [];
+}
+
+export async function getOverallLeaderboard(): Promise<LeaderboardEntry[]> {
+  const session = await requireStudentSession();
+  const db = getSupabaseAdmin();
+  const { data } = await db
+    .from("students")
+    .select("id, full_name, points, branches(name_ar)")
+    .eq("tenant_id", session.tenantId)
+    .eq("active", true)
+    .order("points", { ascending: false })
+    .limit(10);
+
+  return (data ?? []).map((s) => ({
+    id: s.id,
+    full_name: s.full_name,
+    points: s.points,
+    branch_name_ar: (s.branches as unknown as { name_ar: string } | null)?.name_ar ?? null,
+  }));
 }
 
 export async function redeemReward(rewardId: number): Promise<RedeemResult> {

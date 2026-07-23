@@ -15,7 +15,7 @@ import {
 } from "@/lib/validations/auth";
 
 const GENERIC_STAFF_ERROR = "اسم المستخدم أو كلمة المرور غير صحيحة";
-const GENERIC_STUDENT_ERROR = "رقم الهاتف أو كلمة المرور غير صحيحة";
+const GENERIC_STUDENT_ERROR = "رقم الهاتف غير مسجل";
 const RATE_LIMIT_ERROR = "محاولات تسجيل دخول كثيرة جدًا. حاول مرة أخرى بعد دقيقة.";
 
 function clientIp() {
@@ -79,20 +79,18 @@ export async function loginStudent(input: StudentLoginInput): Promise<LoginResul
   if (!parsed.success) {
     return { success: false, error: parsed.error.issues[0]?.message ?? GENERIC_STUDENT_ERROR };
   }
-  const { phone, password } = parsed.data;
+  const { phone } = parsed.data;
 
+  // Phone-only login — no password check. This is an intentional, explicit
+  // tradeoff for this loyalty program (confirmed with the client): anyone
+  // who knows a student's phone number can access that student's account.
   const { data: student } = await getSupabaseAdmin()
     .from("students")
-    .select("id, full_name, password, branch_id, active, tenant_id")
+    .select("id, full_name, branch_id, active, tenant_id")
     .eq("phone", phone)
     .maybeSingle();
 
   if (!student || !student.active) {
-    return { success: false, error: GENERIC_STUDENT_ERROR };
-  }
-
-  const valid = await bcrypt.compare(password, student.password);
-  if (!valid) {
     return { success: false, error: GENERIC_STUDENT_ERROR };
   }
 

@@ -1,6 +1,8 @@
 "use client";
 
 import { useRef } from "react";
+import Link from "next/link";
+import { Trophy } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getPortalBalance, getPortalRewards, getPortalTransactions, redeemReward } from "./actions";
 import { logout } from "@/app/login/actions";
@@ -80,11 +82,17 @@ export function PortalClient({
             <h1 className="text-xl font-bold text-brand-green">تمام</h1>
             <p className="text-sm text-brand-surface-2">مرحبًا، {studentName}</p>
           </div>
-          <form action={logout}>
-            <button type="submit" className="text-sm text-brand-surface-2 underline">
-              تسجيل الخروج
-            </button>
-          </form>
+          <div className="flex items-center gap-3">
+            <Link href="/portal/leaderboard" className="flex items-center gap-1 text-sm text-brand-orange">
+              <Trophy size={16} />
+              المتصدرين
+            </Link>
+            <form action={logout}>
+              <button type="submit" className="text-sm text-brand-surface-2 underline">
+                تسجيل الخروج
+              </button>
+            </form>
+          </div>
         </div>
 
         <div className="mb-6 rounded-2xl bg-brand-dark-2 p-6 text-center">

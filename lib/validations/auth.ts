@@ -7,7 +7,6 @@ export const staffLoginSchema = z.object({
 
 export const studentLoginSchema = z.object({
   phone: z.string().regex(/^\d{10}$/, "رقم الهاتف يجب أن يتكون من 10 أرقام"),
-  password: z.string().min(1, "كلمة المرور مطلوبة"),
 });
 
 export type StaffLoginInput = z.infer<typeof staffLoginSchema>;

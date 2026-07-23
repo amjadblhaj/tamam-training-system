@@ -258,3 +258,23 @@ export interface TenantDetail extends TenantRow {
   subscriptions: SubscriptionRow[];
   staff: StaffRow[];
 }
+
+export interface BranchPublicInfo {
+  id: number;
+  name_ar: string;
+  tenantId: string;
+  academyName: string;
+}
+
+export interface BranchRegistrationLink {
+  id: number;
+  name_ar: string;
+  registration_token: string;
+}
+
+export interface LeaderboardEntry {
+  id: number;
+  full_name: string;
+  points: number;
+  branch_name_ar?: string | null;
+}

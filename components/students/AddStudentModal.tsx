@@ -83,9 +83,6 @@ export function AddStudentModal({ branches, onClose }: { branches: Branch[]; onC
               ))}
             </select>
           </Field>
-          <Field label="كلمة المرور" error={errors.password?.message}>
-            <input {...register("password")} type="password" className={inputClass} />
-          </Field>
           {serverError && <p className="text-sm text-brand-orange">{serverError}</p>}
           <button
             type="submit"

@@ -1,9 +1,9 @@
 "use server";
 
-import bcrypt from "bcryptjs";
 import { getSupabaseAdmin } from "@/lib/supabase/server";
 import { getSession } from "@/lib/auth/get-session";
 import { assertTenantCanWrite } from "@/lib/tenant/resolve-status";
+import { generatePlaceholderPasswordHash } from "@/lib/auth/generate-placeholder-password";
 import { createStudentSchema, type CreateStudentInput } from "@/lib/validations/student";
 import type {
   StudentRow,
@@ -132,7 +132,7 @@ export async function createStudent(input: CreateStudentInput): Promise<ActionRe
   if (!parsed.success) {
     return { success: false, error: parsed.error.issues[0]?.message ?? "بيانات غير صحيحة" };
   }
-  const { fullName, phone, branchId, password } = parsed.data;
+  const { fullName, phone, branchId } = parsed.data;
 
   const db = getSupabaseAdmin();
 
@@ -151,7 +151,7 @@ export async function createStudent(input: CreateStudentInput): Promise<ActionRe
     return { success: false, error: "رقم الهاتف مستخدم بالفعل" };
   }
 
-  const hashed = await bcrypt.hash(password, 12);
+  const hashed = await generatePlaceholderPasswordHash();
   const { error } = await db.from("students").insert({
     full_name: fullName,
     phone,
@@ -164,6 +164,35 @@ export async function createStudent(input: CreateStudentInput): Promise<ActionRe
     return { success: false, error: "حدث خطأ أثناء إضافة الطالب" };
   }
 
+  return { success: true };
+}
+
+export async function transferStudent(id: number, newBranchId: number): Promise<ActionResult> {
+  const session = await getSession();
+  if (!session) return { success: false, error: "غير مصرح" };
+
+  const writeCheck = await assertTenantCanWrite(session.tenantId);
+  if (!writeCheck.allowed) return { success: false, error: writeCheck.error };
+
+  const db = getSupabaseAdmin();
+
+  const { data: branch } = await db
+    .from("branches")
+    .select("id")
+    .eq("id", newBranchId)
+    .eq("tenant_id", session.tenantId)
+    .maybeSingle();
+  if (!branch) return { success: false, error: "الفرع غير موجود" };
+
+  // Points, reward/redemption history, and points_log are keyed by student_id,
+  // not branch_id — updating branch_id alone preserves all of it.
+  const { error } = await db
+    .from("students")
+    .update({ branch_id: newBranchId })
+    .eq("id", id)
+    .eq("tenant_id", session.tenantId);
+
+  if (error) return { success: false, error: "حدث خطأ أثناء نقل الطالب" };
   return { success: true };
 }
 
