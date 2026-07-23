@@ -1,19 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Menu } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { TrialBanner } from "@/components/layout/TrialBanner";
+import { ReadOnlyBanner } from "@/components/layout/ReadOnlyBanner";
 import type { SessionRole } from "@/lib/auth/session";
+import type { TenantStatusInfo } from "@/types";
 
 interface AdminShellProps {
   role: SessionRole;
   name: string;
   logoutAction: () => Promise<void>;
+  initialTenantStatus: TenantStatusInfo | null;
   children: React.ReactNode;
 }
 
-export function AdminShell({ role, name, logoutAction, children }: AdminShellProps) {
+export function AdminShell({ role, name, logoutAction, initialTenantStatus, children }: AdminShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const queryClient = useQueryClient();
+  const seeded = useRef(false);
+  if (!seeded.current) {
+    queryClient.setQueryData(["tenant-status"], initialTenantStatus);
+    seeded.current = true;
+  }
 
   return (
     <div className="flex min-h-screen bg-brand-surface-2">
@@ -44,6 +55,8 @@ export function AdminShell({ role, name, logoutAction, children }: AdminShellPro
             </button>
           </form>
         </header>
+        <TrialBanner />
+        <ReadOnlyBanner />
         <main className="flex-1 p-4 md:p-6">{children}</main>
       </div>
     </div>

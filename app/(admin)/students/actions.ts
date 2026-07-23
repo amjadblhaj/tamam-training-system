@@ -2,6 +2,8 @@
 
 import bcrypt from "bcryptjs";
 import { getSupabaseAdmin } from "@/lib/supabase/server";
+import { getSession } from "@/lib/auth/get-session";
+import { assertTenantCanWrite } from "@/lib/tenant/resolve-status";
 import { createStudentSchema, type CreateStudentInput } from "@/lib/validations/student";
 import type {
   StudentRow,
@@ -20,6 +22,9 @@ function sanitizeSearchTerm(input: string): string {
 }
 
 export async function getStudents(params: GetStudentsParams): Promise<GetStudentsResult> {
+  const session = await getSession();
+  if (!session) return { students: [], total: 0, page: 1, pageSize: PAGE_SIZE };
+
   const db = getSupabaseAdmin();
   const page = params.page && params.page > 0 ? params.page : 1;
   const from = (page - 1) * PAGE_SIZE;
@@ -28,6 +33,7 @@ export async function getStudents(params: GetStudentsParams): Promise<GetStudent
   let query = db
     .from("students")
     .select("id, full_name, phone, branch_id, points, active, joined_at, branches(name_ar)", { count: "exact" })
+    .eq("tenant_id", session.tenantId)
     .eq("active", true)
     .order("created_at", { ascending: false })
     .range(from, to);
@@ -54,11 +60,15 @@ export async function getStudents(params: GetStudentsParams): Promise<GetStudent
 }
 
 export async function getStudentById(id: number): Promise<StudentDetail | null> {
+  const session = await getSession();
+  if (!session) return null;
+
   const db = getSupabaseAdmin();
   const { data } = await db
     .from("students")
     .select("id, full_name, phone, branch_id, points, active, joined_at, created_at, branches(name_ar)")
     .eq("id", id)
+    .eq("tenant_id", session.tenantId)
     .maybeSingle();
 
   if (!data) return null;
@@ -77,21 +87,29 @@ export async function getStudentById(id: number): Promise<StudentDetail | null> 
 }
 
 export async function getStudentPointsHistory(id: number): Promise<PointsLogEntry[]> {
+  const session = await getSession();
+  if (!session) return [];
+
   const db = getSupabaseAdmin();
   const { data } = await db
     .from("points_log")
     .select("*")
     .eq("student_id", id)
+    .eq("tenant_id", session.tenantId)
     .order("created_at", { ascending: false });
   return data ?? [];
 }
 
 export async function getStudentRedemptions(id: number): Promise<RedemptionEntry[]> {
+  const session = await getSession();
+  if (!session) return [];
+
   const db = getSupabaseAdmin();
   const { data } = await db
     .from("redemptions")
     .select("id, reward_id, status, redeemed_at, rewards(name_ar)")
     .eq("student_id", id)
+    .eq("tenant_id", session.tenantId)
     .order("redeemed_at", { ascending: false });
 
   return (data ?? []).map((r) => ({
@@ -104,6 +122,12 @@ export async function getStudentRedemptions(id: number): Promise<RedemptionEntry
 }
 
 export async function createStudent(input: CreateStudentInput): Promise<ActionResult> {
+  const session = await getSession();
+  if (!session) return { success: false, error: "غير مصرح" };
+
+  const writeCheck = await assertTenantCanWrite(session.tenantId);
+  if (!writeCheck.allowed) return { success: false, error: writeCheck.error };
+
   const parsed = createStudentSchema.safeParse(input);
   if (!parsed.success) {
     return { success: false, error: parsed.error.issues[0]?.message ?? "بيانات غير صحيحة" };
@@ -112,7 +136,17 @@ export async function createStudent(input: CreateStudentInput): Promise<ActionRe
 
   const db = getSupabaseAdmin();
 
-  const { data: existing } = await db.from("students").select("id").eq("phone", phone).maybeSingle();
+  const { data: canAdd } = await db.rpc("can_add_student", { p_tenant_id: session.tenantId });
+  if (!canAdd?.allowed) {
+    return { success: false, error: "تم الوصول للحد الأقصى لعدد الطلاب المسموح به في خطتك" };
+  }
+
+  const { data: existing } = await db
+    .from("students")
+    .select("id")
+    .eq("phone", phone)
+    .eq("tenant_id", session.tenantId)
+    .maybeSingle();
   if (existing) {
     return { success: false, error: "رقم الهاتف مستخدم بالفعل" };
   }
@@ -123,6 +157,7 @@ export async function createStudent(input: CreateStudentInput): Promise<ActionRe
     phone,
     branch_id: branchId,
     password: hashed,
+    tenant_id: session.tenantId,
   });
 
   if (error) {
@@ -133,8 +168,18 @@ export async function createStudent(input: CreateStudentInput): Promise<ActionRe
 }
 
 export async function deactivateStudent(id: number): Promise<ActionResult> {
+  const session = await getSession();
+  if (!session) return { success: false, error: "غير مصرح" };
+
+  const writeCheck = await assertTenantCanWrite(session.tenantId);
+  if (!writeCheck.allowed) return { success: false, error: writeCheck.error };
+
   const db = getSupabaseAdmin();
-  const { error } = await db.from("students").update({ active: false }).eq("id", id);
+  const { error } = await db
+    .from("students")
+    .update({ active: false })
+    .eq("id", id)
+    .eq("tenant_id", session.tenantId);
   if (error) {
     return { success: false, error: "حدث خطأ ما" };
   }

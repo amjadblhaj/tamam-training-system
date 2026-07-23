@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SESSION_COOKIE, verifySessionToken, type SessionRole } from "@/lib/auth/session";
+import { SUPER_ADMIN_SESSION_COOKIE, verifySuperAdminSessionToken } from "@/lib/auth/super-admin-session";
 
 const ADMIN_ONLY = ["/rewards", "/settings"];
 const STAFF_AND_ADMIN = ["/dashboard", "/students", "/grant", "/excel", "/activity"];
 const STUDENT_ONLY = ["/portal"];
+const SUPER_ADMIN_PREFIX = "/super-admin";
 
 function matchesPrefix(pathname: string, prefixes: string[]) {
   return prefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`));
@@ -15,6 +17,26 @@ function homeFor(role: SessionRole) {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Super Admin has its own completely separate session/cookie — never mixed
+  // with tenant staff/student auth.
+  if (pathname.startsWith(SUPER_ADMIN_PREFIX)) {
+    const saToken = request.cookies.get(SUPER_ADMIN_SESSION_COOKIE)?.value;
+    const saSession = saToken ? await verifySuperAdminSessionToken(saToken) : null;
+
+    if (pathname === "/super-admin/login") {
+      if (saSession) {
+        return NextResponse.redirect(new URL("/super-admin/dashboard", request.url));
+      }
+      return NextResponse.next();
+    }
+
+    if (!saSession) {
+      return NextResponse.redirect(new URL("/super-admin/login", request.url));
+    }
+    return NextResponse.next();
+  }
+
   const token = request.cookies.get(SESSION_COOKIE)?.value;
   const session = token ? await verifySessionToken(token) : null;
 
@@ -63,5 +85,6 @@ export const config = {
     "/activity/:path*",
     "/settings/:path*",
     "/portal/:path*",
+    "/super-admin/:path*",
   ],
 };

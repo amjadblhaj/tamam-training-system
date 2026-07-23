@@ -7,9 +7,11 @@ import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useStudents } from "@/hooks/useStudents";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { AddStudentModal } from "@/components/students/AddStudentModal";
+import { useReadOnly } from "@/hooks/useReadOnly";
 import type { Branch } from "@/types";
 
 export function StudentsClient({ branches }: { branches: Branch[] }) {
+  const { canEdit } = useReadOnly();
   const [search, setSearch] = useState("");
   const [branchId, setBranchId] = useState<number | null>(null);
   const [page, setPage] = useState(1);
@@ -23,12 +25,14 @@ export function StudentsClient({ branches }: { branches: Branch[] }) {
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-brand-text">الطلاب</h1>
-        <button
-          onClick={() => setModalOpen(true)}
-          className="flex items-center gap-2 rounded-lg bg-brand-green px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-green-dark"
-        >
-          <Plus size={16} /> إضافة طالب
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => setModalOpen(true)}
+            className="flex items-center gap-2 rounded-lg bg-brand-green px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-green-dark"
+          >
+            <Plus size={16} /> إضافة طالب
+          </button>
+        )}
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-3">

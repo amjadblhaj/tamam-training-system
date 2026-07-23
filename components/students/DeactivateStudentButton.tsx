@@ -4,11 +4,15 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { deactivateStudent } from "@/app/(admin)/students/actions";
 import { useToast } from "@/components/providers/toast-provider";
+import { useReadOnly } from "@/hooks/useReadOnly";
 
 export function DeactivateStudentButton({ studentId }: { studentId: number }) {
   const router = useRouter();
   const toast = useToast();
+  const { canEdit } = useReadOnly();
   const [loading, setLoading] = useState(false);
+
+  if (!canEdit) return null;
 
   async function handleClick() {
     if (!confirm("هل أنت متأكد من إلغاء تفعيل هذا الطالب؟")) return;

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getSupabaseAdmin } from "@/lib/supabase/server";
 import { getSession } from "@/lib/auth/get-session";
 import { getPortalRewards, getPortalTransactions } from "./actions";
+import { getTenantStatus } from "@/lib/actions/tenant";
 import { PortalClient } from "./PortalClient";
 
 export default async function PortalPage() {
@@ -13,10 +14,11 @@ export default async function PortalPage() {
   const studentId = Number(session.id);
   const db = getSupabaseAdmin();
 
-  const [{ data: student }, rewards, transactions] = await Promise.all([
+  const [{ data: student }, rewards, transactions, tenantStatus] = await Promise.all([
     db.from("students").select("points").eq("id", studentId).maybeSingle(),
     getPortalRewards(),
     getPortalTransactions(),
+    getTenantStatus(),
   ]);
 
   return (
@@ -25,6 +27,7 @@ export default async function PortalPage() {
       initialBalance={student?.points ?? 0}
       initialRewards={rewards}
       initialTransactions={transactions}
+      initialTenantStatus={tenantStatus}
     />
   );
 }

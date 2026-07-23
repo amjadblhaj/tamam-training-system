@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { AddStaffModal } from "@/components/settings/AddStaffModal";
 import { useToast } from "@/components/providers/toast-provider";
 import { getStaffList, toggleStaffActive, deleteStaff } from "./actions";
+import { useReadOnly } from "@/hooks/useReadOnly";
 import type { Branch, StaffRow } from "@/types";
 
 const ROLE_LABELS: Record<string, string> = {
@@ -17,6 +18,7 @@ const ROLE_LABELS: Record<string, string> = {
 export function SettingsClient({ branches }: { branches: Branch[] }) {
   const queryClient = useQueryClient();
   const toast = useToast();
+  const { canEdit } = useReadOnly();
   const [modalOpen, setModalOpen] = useState(false);
 
   const { data: staff, isLoading } = useQuery({ queryKey: ["staff"], queryFn: () => getStaffList() });
@@ -46,12 +48,14 @@ export function SettingsClient({ branches }: { branches: Branch[] }) {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-brand-text">الإعدادات</h1>
-        <button
-          onClick={() => setModalOpen(true)}
-          className="flex items-center gap-2 rounded-lg bg-brand-green px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-green-dark"
-        >
-          <Plus size={16} /> إضافة موظف
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => setModalOpen(true)}
+            className="flex items-center gap-2 rounded-lg bg-brand-green px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-green-dark"
+          >
+            <Plus size={16} /> إضافة موظف
+          </button>
+        )}
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-brand-border bg-brand-surface">
@@ -69,7 +73,7 @@ export function SettingsClient({ branches }: { branches: Branch[] }) {
                 <th className="px-4 py-3 font-medium">الفرع</th>
                 <th className="px-4 py-3 font-medium">الصلاحية</th>
                 <th className="px-4 py-3 font-medium">الحالة</th>
-                <th className="px-4 py-3 font-medium">إجراءات</th>
+                {canEdit && <th className="px-4 py-3 font-medium">إجراءات</th>}
               </tr>
             </thead>
             <tbody>
@@ -79,20 +83,32 @@ export function SettingsClient({ branches }: { branches: Branch[] }) {
                   <td className="px-4 py-3 text-brand-text-2">{s.branch_name_ar ?? "—"}</td>
                   <td className="px-4 py-3 text-brand-text-2">{ROLE_LABELS[s.role] ?? s.role}</td>
                   <td className="px-4 py-3">
-                    <button
-                      onClick={() => handleToggle(s)}
-                      className={`rounded-full px-3 py-1 text-xs font-medium ${
-                        s.active ? "bg-brand-green-light text-brand-green" : "bg-brand-surface-3 text-brand-text-3"
-                      }`}
-                    >
-                      {s.active ? "نشط" : "غير نشط"}
-                    </button>
+                    {canEdit ? (
+                      <button
+                        onClick={() => handleToggle(s)}
+                        className={`rounded-full px-3 py-1 text-xs font-medium ${
+                          s.active ? "bg-brand-green-light text-brand-green" : "bg-brand-surface-3 text-brand-text-3"
+                        }`}
+                      >
+                        {s.active ? "نشط" : "غير نشط"}
+                      </button>
+                    ) : (
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-medium ${
+                          s.active ? "bg-brand-green-light text-brand-green" : "bg-brand-surface-3 text-brand-text-3"
+                        }`}
+                      >
+                        {s.active ? "نشط" : "غير نشط"}
+                      </span>
+                    )}
                   </td>
-                  <td className="px-4 py-3">
-                    <button onClick={() => handleDelete(s)} className="text-brand-orange hover:underline">
-                      <Trash2 size={16} />
-                    </button>
-                  </td>
+                  {canEdit && (
+                    <td className="px-4 py-3">
+                      <button onClick={() => handleDelete(s)} className="text-brand-orange hover:underline">
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

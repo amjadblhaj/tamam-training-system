@@ -2,6 +2,7 @@
 
 import { getSupabaseAdmin } from "@/lib/supabase/server";
 import { getSession } from "@/lib/auth/get-session";
+import { assertTenantCanWrite } from "@/lib/tenant/resolve-status";
 import { grantPointsSchema, GRANT_REASONS, type GrantPointsInput } from "@/lib/validations/points";
 import type { StudentSearchResult, GrantPointsResult } from "@/types";
 
@@ -10,6 +11,9 @@ function sanitizeSearchTerm(input: string): string {
 }
 
 export async function searchStudentsForGrant(query: string): Promise<StudentSearchResult[]> {
+  const session = await getSession();
+  if (!session) return [];
+
   const safe = sanitizeSearchTerm(query);
   if (!safe) return [];
 
@@ -17,6 +21,7 @@ export async function searchStudentsForGrant(query: string): Promise<StudentSear
   const { data } = await db
     .from("students")
     .select("id, full_name, phone, points, branches(name_ar)")
+    .eq("tenant_id", session.tenantId)
     .eq("active", true)
     .or(`full_name.ilike.%${safe}%,phone.ilike.%${safe}%`)
     .limit(10);
@@ -31,22 +36,26 @@ export async function searchStudentsForGrant(query: string): Promise<StudentSear
 }
 
 export async function grantPoints(input: GrantPointsInput): Promise<GrantPointsResult> {
+  const session = await getSession();
+  if (!session || session.role === "student") {
+    return { success: false, error: "غير مصرح" };
+  }
+
+  const writeCheck = await assertTenantCanWrite(session.tenantId);
+  if (!writeCheck.allowed) return { success: false, error: writeCheck.error };
+
   const parsed = grantPointsSchema.safeParse(input);
   if (!parsed.success) {
     return { success: false, error: parsed.error.issues[0]?.message ?? "بيانات غير صحيحة" };
   }
   const { studentId, points, reason, customReason } = parsed.data;
 
-  const session = await getSession();
-  if (!session || session.role === "student") {
-    return { success: false, error: "غير مصرح" };
-  }
-
   const preset = GRANT_REASONS.find((r) => r.value === reason);
   const action = reason === "custom" ? customReason!.trim() : preset?.action ?? reason;
 
   const db = getSupabaseAdmin();
-  const { data, error } = await db.rpc("grant_points", {
+  const { data, error } = await db.rpc("grant_points_v2", {
+    p_tenant_id: session.tenantId,
     p_student_id: studentId,
     p_points: points,
     p_action: action,

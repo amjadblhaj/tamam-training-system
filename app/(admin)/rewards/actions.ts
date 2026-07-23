@@ -2,22 +2,36 @@
 
 import { getSupabaseAdmin } from "@/lib/supabase/server";
 import { getSession } from "@/lib/auth/get-session";
+import { assertTenantCanWrite } from "@/lib/tenant/resolve-status";
 import { rewardSchema, type RewardInput } from "@/lib/validations/reward";
 import type { Reward, ActionResult } from "@/types";
 
-async function isAdmin(): Promise<boolean> {
+async function requireAdminWriteAccess() {
   const session = await getSession();
-  return session?.role === "admin";
+  if (session?.role !== "admin") return { session: null, error: "غير مصرح" };
+
+  const writeCheck = await assertTenantCanWrite(session.tenantId);
+  if (!writeCheck.allowed) return { session: null, error: writeCheck.error };
+
+  return { session, error: undefined };
 }
 
 export async function getRewards(): Promise<Reward[]> {
+  const session = await getSession();
+  if (!session) return [];
+
   const db = getSupabaseAdmin();
-  const { data } = await db.from("rewards").select("*").order("points_required", { ascending: true });
+  const { data } = await db
+    .from("rewards")
+    .select("*")
+    .eq("tenant_id", session.tenantId)
+    .order("points_required", { ascending: true });
   return data ?? [];
 }
 
 export async function createReward(input: RewardInput): Promise<ActionResult> {
-  if (!(await isAdmin())) return { success: false, error: "غير مصرح" };
+  const { session, error: accessError } = await requireAdminWriteAccess();
+  if (!session) return { success: false, error: accessError };
 
   const parsed = rewardSchema.safeParse(input);
   if (!parsed.success) {
@@ -31,6 +45,7 @@ export async function createReward(input: RewardInput): Promise<ActionResult> {
     name_en: nameEn,
     description: description || null,
     points_required: pointsRequired,
+    tenant_id: session.tenantId,
   });
 
   if (error) return { success: false, error: "حدث خطأ أثناء إضافة المكافأة" };
@@ -38,7 +53,8 @@ export async function createReward(input: RewardInput): Promise<ActionResult> {
 }
 
 export async function updateReward(id: number, input: RewardInput): Promise<ActionResult> {
-  if (!(await isAdmin())) return { success: false, error: "غير مصرح" };
+  const { session, error: accessError } = await requireAdminWriteAccess();
+  if (!session) return { success: false, error: accessError };
 
   const parsed = rewardSchema.safeParse(input);
   if (!parsed.success) {
@@ -55,26 +71,29 @@ export async function updateReward(id: number, input: RewardInput): Promise<Acti
       description: description || null,
       points_required: pointsRequired,
     })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("tenant_id", session.tenantId);
 
   if (error) return { success: false, error: "حدث خطأ أثناء تحديث المكافأة" };
   return { success: true };
 }
 
 export async function toggleRewardActive(id: number, active: boolean): Promise<ActionResult> {
-  if (!(await isAdmin())) return { success: false, error: "غير مصرح" };
+  const { session, error: accessError } = await requireAdminWriteAccess();
+  if (!session) return { success: false, error: accessError };
 
   const db = getSupabaseAdmin();
-  const { error } = await db.from("rewards").update({ active }).eq("id", id);
+  const { error } = await db.from("rewards").update({ active }).eq("id", id).eq("tenant_id", session.tenantId);
   if (error) return { success: false, error: "حدث خطأ ما" };
   return { success: true };
 }
 
 export async function deleteReward(id: number): Promise<ActionResult> {
-  if (!(await isAdmin())) return { success: false, error: "غير مصرح" };
+  const { session, error: accessError } = await requireAdminWriteAccess();
+  if (!session) return { success: false, error: accessError };
 
   const db = getSupabaseAdmin();
-  const { error } = await db.from("rewards").delete().eq("id", id);
+  const { error } = await db.from("rewards").delete().eq("id", id).eq("tenant_id", session.tenantId);
   if (error) return { success: false, error: "حدث خطأ أثناء حذف المكافأة" };
   return { success: true };
 }

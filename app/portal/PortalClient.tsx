@@ -1,16 +1,19 @@
 "use client";
 
+import { useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getPortalBalance, getPortalRewards, getPortalTransactions, redeemReward } from "./actions";
 import { logout } from "@/app/login/actions";
 import { useToast } from "@/components/providers/toast-provider";
-import type { PortalReward, PortalTransaction } from "@/types";
+import { useReadOnly } from "@/hooks/useReadOnly";
+import type { PortalReward, PortalTransaction, TenantStatusInfo } from "@/types";
 
 interface PortalClientProps {
   studentName: string;
   initialBalance: number;
   initialRewards: PortalReward[];
   initialTransactions: PortalTransaction[];
+  initialTenantStatus: TenantStatusInfo | null;
 }
 
 export function PortalClient({
@@ -18,9 +21,16 @@ export function PortalClient({
   initialBalance,
   initialRewards,
   initialTransactions,
+  initialTenantStatus,
 }: PortalClientProps) {
   const queryClient = useQueryClient();
   const toast = useToast();
+  const seeded = useRef(false);
+  if (!seeded.current) {
+    queryClient.setQueryData(["tenant-status"], initialTenantStatus);
+    seeded.current = true;
+  }
+  const { canEdit } = useReadOnly();
 
   const { data: balance = initialBalance } = useQuery({
     queryKey: ["portal-balance"],
@@ -107,17 +117,23 @@ export function PortalClient({
                       <p className="text-sm text-brand-orange">{r.points_required} نقطة</p>
                     </div>
                     {r.description && <p className="mb-3 text-xs text-brand-surface-2">{r.description}</p>}
-                    <button
-                      onClick={() => handleRedeem(r)}
-                      disabled={!canRedeem || isPending}
-                      className={`w-full rounded-lg py-2 text-sm font-semibold transition-colors ${
-                        canRedeem
-                          ? "bg-brand-green text-brand-dark hover:bg-brand-green-dark"
-                          : "cursor-not-allowed bg-brand-dark text-brand-surface-2"
-                      }`}
-                    >
-                      {canRedeem ? "استبدال" : `يلزم ${r.points_required - balance} نقطة إضافية`}
-                    </button>
+                    {!canEdit ? (
+                      <div className="w-full rounded-lg bg-brand-dark py-2 text-center text-sm font-semibold text-brand-surface-2">
+                        الاستبدال موقوف مؤقتاً
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => handleRedeem(r)}
+                        disabled={!canRedeem || isPending}
+                        className={`w-full rounded-lg py-2 text-sm font-semibold transition-colors ${
+                          canRedeem
+                            ? "bg-brand-green text-brand-dark hover:bg-brand-green-dark"
+                            : "cursor-not-allowed bg-brand-dark text-brand-surface-2"
+                        }`}
+                      >
+                        {canRedeem ? "استبدال" : `يلزم ${r.points_required - balance} نقطة إضافية`}
+                      </button>
+                    )}
                   </div>
                 );
               })

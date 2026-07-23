@@ -1,26 +1,38 @@
 "use server";
 
 import { getSupabaseAdmin } from "@/lib/supabase/server";
+import { getSession } from "@/lib/auth/get-session";
 import type { DashboardMetrics, TopStudent, ActivityEntry } from "@/types";
 
 export async function getDashboardMetrics(branchId: number | null): Promise<DashboardMetrics> {
+  const session = await getSession();
+  if (!session) return { totalStudents: 0, totalPointsGranted: 0, rewardsRedeemed: 0, activeBranches: 0 };
+  const tenantId = session.tenantId;
   const db = getSupabaseAdmin();
 
-  let studentsQuery = db.from("students").select("id", { count: "exact", head: true }).eq("active", true);
+  let studentsQuery = db
+    .from("students")
+    .select("id", { count: "exact", head: true })
+    .eq("tenant_id", tenantId)
+    .eq("active", true);
   if (branchId) studentsQuery = studentsQuery.eq("branch_id", branchId);
   const { count: totalStudents } = await studentsQuery;
 
-  let pointsQuery = db.from("points_log").select("points").gt("points", 0);
+  let pointsQuery = db.from("points_log").select("points").eq("tenant_id", tenantId).gt("points", 0);
   if (branchId) pointsQuery = pointsQuery.eq("branch_id", branchId);
   const { data: pointsRows } = await pointsQuery;
   const totalPointsGranted = (pointsRows ?? []).reduce((sum, r) => sum + r.points, 0);
 
-  let redemptionsQuery = db.from("redemptions").select("id, students!inner(branch_id)");
+  let redemptionsQuery = db.from("redemptions").select("id, students!inner(branch_id)").eq("tenant_id", tenantId);
   if (branchId) redemptionsQuery = redemptionsQuery.eq("students.branch_id", branchId);
   const { data: redemptionRows } = await redemptionsQuery;
   const rewardsRedeemed = (redemptionRows ?? []).length;
 
-  let branchesQuery = db.from("branches").select("id", { count: "exact", head: true }).eq("active", true);
+  let branchesQuery = db
+    .from("branches")
+    .select("id", { count: "exact", head: true })
+    .eq("tenant_id", tenantId)
+    .eq("active", true);
   if (branchId) branchesQuery = branchesQuery.eq("id", branchId);
   const { count: activeBranches } = await branchesQuery;
 
@@ -33,10 +45,14 @@ export async function getDashboardMetrics(branchId: number | null): Promise<Dash
 }
 
 export async function getTopStudents(branchId: number | null): Promise<TopStudent[]> {
+  const session = await getSession();
+  if (!session) return [];
+
   const db = getSupabaseAdmin();
   let query = db
     .from("students")
     .select("id, full_name, points, branches(name_ar)")
+    .eq("tenant_id", session.tenantId)
     .eq("active", true)
     .order("points", { ascending: false })
     .limit(5);
@@ -52,10 +68,14 @@ export async function getTopStudents(branchId: number | null): Promise<TopStuden
 }
 
 export async function getRecentActivity(branchId: number | null): Promise<ActivityEntry[]> {
+  const session = await getSession();
+  if (!session) return [];
+
   const db = getSupabaseAdmin();
   let query = db
     .from("points_log")
     .select("id, points, action, granted_by, created_at, students(full_name), branches(name_ar)")
+    .eq("tenant_id", session.tenantId)
     .order("created_at", { ascending: false })
     .limit(10);
   if (branchId) query = query.eq("branch_id", branchId);

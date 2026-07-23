@@ -45,7 +45,7 @@ export async function loginStaff(input: StaffLoginInput): Promise<LoginResult> {
 
   const { data: staff } = await getSupabaseAdmin()
     .from("staff")
-    .select("id, username, password, role, branch_id, active")
+    .select("id, username, password, role, branch_id, active, tenant_id")
     .eq("username", username)
     .maybeSingle();
 
@@ -63,6 +63,7 @@ export async function loginStaff(input: StaffLoginInput): Promise<LoginResult> {
     role: staff.role === "admin" ? "admin" : "staff",
     name: staff.username,
     branchId: staff.branch_id,
+    tenantId: staff.tenant_id,
   });
   setSessionCookie(token);
 
@@ -82,7 +83,7 @@ export async function loginStudent(input: StudentLoginInput): Promise<LoginResul
 
   const { data: student } = await getSupabaseAdmin()
     .from("students")
-    .select("id, full_name, password, branch_id, active")
+    .select("id, full_name, password, branch_id, active, tenant_id")
     .eq("phone", phone)
     .maybeSingle();
 
@@ -100,6 +101,7 @@ export async function loginStudent(input: StudentLoginInput): Promise<LoginResul
     role: "student",
     name: student.full_name,
     branchId: student.branch_id,
+    tenantId: student.tenant_id,
   });
   setSessionCookie(token);
 

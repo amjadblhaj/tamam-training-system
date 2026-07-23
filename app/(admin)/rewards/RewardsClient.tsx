@@ -7,11 +7,13 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { RewardModal } from "@/components/rewards/RewardModal";
 import { getRewards, toggleRewardActive, deleteReward } from "./actions";
 import { useToast } from "@/components/providers/toast-provider";
+import { useReadOnly } from "@/hooks/useReadOnly";
 import type { Reward } from "@/types";
 
 export function RewardsClient() {
   const queryClient = useQueryClient();
   const toast = useToast();
+  const { canEdit } = useReadOnly();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingReward, setEditingReward] = useState<Reward | null>(null);
 
@@ -52,12 +54,14 @@ export function RewardsClient() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-brand-text">المكافآت</h1>
-        <button
-          onClick={openAddModal}
-          className="flex items-center gap-2 rounded-lg bg-brand-green px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-green-dark"
-        >
-          <Plus size={16} /> إضافة مكافأة
-        </button>
+        {canEdit && (
+          <button
+            onClick={openAddModal}
+            className="flex items-center gap-2 rounded-lg bg-brand-green px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-green-dark"
+          >
+            <Plus size={16} /> إضافة مكافأة
+          </button>
+        )}
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-brand-border bg-brand-surface">
@@ -76,7 +80,7 @@ export function RewardsClient() {
                 <th className="px-4 py-3 font-medium">الوصف</th>
                 <th className="px-4 py-3 font-medium">الحالة</th>
                 <th className="px-4 py-3 font-medium">الاستبدالات</th>
-                <th className="px-4 py-3 font-medium">إجراءات</th>
+                {canEdit && <th className="px-4 py-3 font-medium">إجراءات</th>}
               </tr>
             </thead>
             <tbody>
@@ -86,26 +90,38 @@ export function RewardsClient() {
                   <td className="px-4 py-3 font-semibold text-brand-orange">{r.points_required}</td>
                   <td className="max-w-xs truncate px-4 py-3 text-brand-text-2">{r.description}</td>
                   <td className="px-4 py-3">
-                    <button
-                      onClick={() => handleToggle(r)}
-                      className={`rounded-full px-3 py-1 text-xs font-medium ${
-                        r.active ? "bg-brand-green-light text-brand-green" : "bg-brand-surface-3 text-brand-text-3"
-                      }`}
-                    >
-                      {r.active ? "مفعّلة" : "غير مفعّلة"}
-                    </button>
+                    {canEdit ? (
+                      <button
+                        onClick={() => handleToggle(r)}
+                        className={`rounded-full px-3 py-1 text-xs font-medium ${
+                          r.active ? "bg-brand-green-light text-brand-green" : "bg-brand-surface-3 text-brand-text-3"
+                        }`}
+                      >
+                        {r.active ? "مفعّلة" : "غير مفعّلة"}
+                      </button>
+                    ) : (
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-medium ${
+                          r.active ? "bg-brand-green-light text-brand-green" : "bg-brand-surface-3 text-brand-text-3"
+                        }`}
+                      >
+                        {r.active ? "مفعّلة" : "غير مفعّلة"}
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-brand-text-2">{r.redeemed_count}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <button onClick={() => openEditModal(r)} className="text-brand-green hover:underline">
-                        <Pencil size={16} />
-                      </button>
-                      <button onClick={() => handleDelete(r)} className="text-brand-orange hover:underline">
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
+                  {canEdit && (
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <button onClick={() => openEditModal(r)} className="text-brand-green hover:underline">
+                          <Pencil size={16} />
+                        </button>
+                        <button onClick={() => handleDelete(r)} className="text-brand-orange hover:underline">
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

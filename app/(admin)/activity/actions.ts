@@ -32,6 +32,9 @@ function mapRow(r: RawActivityRow): ActivityLogRow {
 }
 
 export async function getActivityLog(params: ActivityLogParams): Promise<ActivityLogResult> {
+  const session = await getSession();
+  if (!session) return { rows: [], total: 0, page: 1, pageSize: PAGE_SIZE };
+
   const db = getSupabaseAdmin();
   const page = params.page && params.page > 0 ? params.page : 1;
   const from = (page - 1) * PAGE_SIZE;
@@ -40,6 +43,7 @@ export async function getActivityLog(params: ActivityLogParams): Promise<Activit
   let query = db
     .from("points_log")
     .select(SELECT_COLUMNS, { count: "exact" })
+    .eq("tenant_id", session.tenantId)
     .order("created_at", { ascending: false })
     .range(from, to);
 
@@ -64,7 +68,12 @@ export async function getActivityLogForExport(params: Omit<ActivityLogParams, "p
   if (!session || session.role !== "admin") return [];
 
   const db = getSupabaseAdmin();
-  let query = db.from("points_log").select(SELECT_COLUMNS).order("created_at", { ascending: false }).limit(5000);
+  let query = db
+    .from("points_log")
+    .select(SELECT_COLUMNS)
+    .eq("tenant_id", session.tenantId)
+    .order("created_at", { ascending: false })
+    .limit(5000);
 
   if (params.branchId) query = query.eq("branch_id", params.branchId);
   if (params.type) query = query.eq("type", params.type);

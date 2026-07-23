@@ -7,6 +7,7 @@ export interface SessionPayload {
   role: SessionRole;
   name: string;
   branchId: number | null;
+  tenantId: string;
 }
 
 export const SESSION_COOKIE = "tamam_session";
@@ -33,6 +34,7 @@ export async function verifySessionToken(token: string): Promise<SessionPayload 
       typeof payload.id === "string" &&
       typeof payload.role === "string" &&
       typeof payload.name === "string" &&
+      typeof payload.tenantId === "string" &&
       (payload.branchId === null || typeof payload.branchId === "number")
     ) {
       return {
@@ -40,6 +42,7 @@ export async function verifySessionToken(token: string): Promise<SessionPayload 
         role: payload.role as SessionRole,
         name: payload.name,
         branchId: (payload.branchId as number | null) ?? null,
+        tenantId: payload.tenantId,
       };
     }
     return null;

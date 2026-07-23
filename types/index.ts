@@ -174,3 +174,75 @@ export interface StaffRow {
   branch_name_ar: string | null;
   active: boolean;
 }
+
+export type TenantStatus = "trial" | "active" | "suspended" | "expired";
+
+export interface TenantStatusInfo {
+  academyName: string;
+  status: TenantStatus;
+  trialEndsAt: string | null;
+  subscriptionEndsAt: string | null;
+}
+
+export interface TenantRow {
+  id: string;
+  academy_name: string;
+  academy_name_en: string | null;
+  owner_name: string;
+  owner_email: string;
+  owner_phone: string | null;
+  plan: string;
+  max_branches: number;
+  max_students: number;
+  status: TenantStatus;
+  trial_ends_at: string | null;
+  subscription_ends_at: string | null;
+  created_at: string;
+  branches_used: number;
+  students_count: number;
+  addon_branches: number;
+  total_branches_allowed: number;
+  total_paid: number;
+}
+
+export interface CreateTenantInput {
+  academyName: string;
+  academyNameEn?: string;
+  ownerName: string;
+  ownerEmail: string;
+  ownerPhone?: string;
+  plan: "basic" | "standard" | "pro";
+  trialDays: number;
+  adminUsername: string;
+  adminPassword: string;
+}
+
+export interface CreateTenantResult {
+  success: boolean;
+  error?: string;
+  credentials?: { username: string; password: string; academyName: string };
+}
+
+export interface SuperAdminDashboardStats {
+  totalTenants: number;
+  activeTenants: number;
+  trialTenants: number;
+  suspendedOrExpiredTenants: number;
+}
+
+export interface SubscriptionRow {
+  id: number;
+  plan: string;
+  amount: number | null;
+  currency: string;
+  status: string;
+  payment_ref: string | null;
+  starts_at: string;
+  ends_at: string | null;
+  created_by: string | null;
+}
+
+export interface TenantDetail extends TenantRow {
+  subscriptions: SubscriptionRow[];
+  staff: StaffRow[];
+}

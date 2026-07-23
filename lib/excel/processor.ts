@@ -4,7 +4,11 @@ import type { ExcelRowInput, ExcelProcessResult } from "@/types";
 
 const CONCURRENCY = 10;
 
-export async function processExcelRows(rows: ExcelRowInput[], grantedBy: string): Promise<ExcelProcessResult> {
+export async function processExcelRows(
+  rows: ExcelRowInput[],
+  tenantId: string,
+  grantedBy: string
+): Promise<ExcelProcessResult> {
   const db = getSupabaseAdmin();
   const result: ExcelProcessResult = { successCount: 0, errors: [] };
 
@@ -23,17 +27,19 @@ export async function processExcelRows(rows: ExcelRowInput[], grantedBy: string)
 
   if (validRows.length === 0) return result;
 
-  // One batched lookup instead of one query per row.
+  // One batched lookup instead of one query per row — scoped to this tenant
+  // so an Excel file can only ever grant points to this academy's students.
   const uniquePhones = Array.from(new Set(validRows.map((r) => r.phone)));
   const { data: students } = await db
     .from("students")
     .select("id, phone")
     .in("phone", uniquePhones)
+    .eq("tenant_id", tenantId)
     .eq("active", true);
 
   const phoneToId = new Map((students ?? []).map((s) => [s.phone, s.id]));
 
-  // grant_points calls are network round-trips to Supabase; running them
+  // grant_points_v2 calls are network round-trips to Supabase; running them
   // sequentially made 60 rows take ~20s. Each call is still individually
   // atomic (row-locked), so bounded concurrency is safe and ~10x faster.
   for (let i = 0; i < validRows.length; i += CONCURRENCY) {
@@ -45,7 +51,8 @@ export async function processExcelRows(rows: ExcelRowInput[], grantedBy: string)
           return { rowNumber: row.rowNumber, error: `رقم الهاتف ${row.phone} غير مسجل` };
         }
 
-        const { data, error } = await db.rpc("grant_points", {
+        const { data, error } = await db.rpc("grant_points_v2", {
+          p_tenant_id: tenantId,
           p_student_id: studentId,
           p_points: row.points,
           p_action: row.reason || "استيراد إكسل",

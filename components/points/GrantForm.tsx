@@ -14,6 +14,8 @@ import {
 } from "@/lib/validations/points";
 import { searchStudentsForGrant, grantPoints } from "@/app/(admin)/grant/actions";
 import { useToast } from "@/components/providers/toast-provider";
+import { useReadOnly } from "@/hooks/useReadOnly";
+import { ReadOnlyPlaceholder } from "@/components/shared/ReadOnlyPlaceholder";
 import type { StudentSearchResult } from "@/types";
 
 const inputClass =
@@ -21,6 +23,7 @@ const inputClass =
 
 export function GrantForm() {
   const toast = useToast();
+  const { canEdit } = useReadOnly();
   const [search, setSearch] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<StudentSearchResult | null>(null);
@@ -53,6 +56,10 @@ export function GrantForm() {
       setValue("points", preset.defaultPoints as unknown as GrantPointsFormInput["points"]);
     }
   }, [reason, setValue]);
+
+  if (!canEdit) {
+    return <ReadOnlyPlaceholder message="منح النقاط غير متاح في وضع القراءة" />;
+  }
 
   function selectStudent(student: StudentSearchResult) {
     setSelectedStudent(student);
