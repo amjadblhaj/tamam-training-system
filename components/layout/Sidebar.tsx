@@ -12,6 +12,7 @@ import {
   Award,
   Settings,
   Link2,
+  Trophy,
   type LucideIcon,
 } from "lucide-react";
 import type { SessionRole } from "@/lib/auth/session";
@@ -28,6 +29,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/students", label: "الطلاب", icon: Users },
   { href: "/branches", label: "الفروع", icon: Building2 },
   { href: "/registration-links", label: "روابط التسجيل", icon: Link2 },
+  { href: "/leaderboards", label: "لوحات المتصدرين", icon: Trophy },
   { href: "/grant", label: "منح النقاط", icon: Gift },
   { href: "/excel", label: "استيراد إكسل", icon: FileSpreadsheet },
   { href: "/activity", label: "سجل النشاط", icon: ClipboardList },

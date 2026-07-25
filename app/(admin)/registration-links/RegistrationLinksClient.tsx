@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Copy, Check, Link2 } from "lucide-react";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { QrCodeCell } from "@/components/shared/QrCodeCell";
 import { getBranchRegistrationLinks } from "./actions";
 import type { BranchRegistrationLink } from "@/types";
 
@@ -33,6 +34,10 @@ export function RegistrationLinksClient({ initialData }: { initialData: BranchRe
     setTimeout(() => setCopiedId(null), 2000);
   }
 
+  function urlFor(link: BranchRegistrationLink) {
+    return origin ? `${origin}/register/${link.registration_token}` : "";
+  }
+
   return (
     <div>
       <div className="mb-6">
@@ -48,6 +53,7 @@ export function RegistrationLinksClient({ initialData }: { initialData: BranchRe
                 <th className="px-4 py-3 font-medium">الفرع</th>
                 <th className="px-4 py-3 font-medium">رابط التسجيل</th>
                 <th className="px-4 py-3 font-medium">نسخ</th>
+                <th className="px-4 py-3 font-medium">رمز QR</th>
               </tr>
             </thead>
             <tbody>
@@ -55,7 +61,7 @@ export function RegistrationLinksClient({ initialData }: { initialData: BranchRe
                 <tr key={l.id} className="border-b border-brand-border last:border-0">
                   <td className="px-4 py-3 text-brand-text">{l.name_ar}</td>
                   <td className="max-w-xs truncate px-4 py-3 text-brand-text-2" dir="ltr">
-                    {`${origin}/register/${l.registration_token}`}
+                    {urlFor(l)}
                   </td>
                   <td className="px-4 py-3">
                     <button
@@ -65,6 +71,9 @@ export function RegistrationLinksClient({ initialData }: { initialData: BranchRe
                       {copiedId === l.id ? <Check size={16} /> : <Copy size={16} />}
                       {copiedId === l.id ? "تم النسخ" : "نسخ"}
                     </button>
+                  </td>
+                  <td className="px-4 py-3">
+                    <QrCodeCell url={urlFor(l)} fileName={`register-branch-${l.id}`} />
                   </td>
                 </tr>
               ))}

@@ -3,7 +3,16 @@ import { SESSION_COOKIE, verifySessionToken, type SessionRole } from "@/lib/auth
 import { SUPER_ADMIN_SESSION_COOKIE, verifySuperAdminSessionToken } from "@/lib/auth/super-admin-session";
 
 const ADMIN_ONLY = ["/rewards", "/settings"];
-const STAFF_AND_ADMIN = ["/dashboard", "/students", "/branches", "/registration-links", "/grant", "/excel", "/activity"];
+const STAFF_AND_ADMIN = [
+  "/dashboard",
+  "/students",
+  "/branches",
+  "/registration-links",
+  "/leaderboards",
+  "/grant",
+  "/excel",
+  "/activity",
+];
 const STUDENT_ONLY = ["/portal"];
 const SUPER_ADMIN_PREFIX = "/super-admin";
 
@@ -81,6 +90,7 @@ export const config = {
     "/students/:path*",
     "/branches/:path*",
     "/registration-links/:path*",
+    "/leaderboards/:path*",
     "/grant/:path*",
     "/excel/:path*",
     "/rewards/:path*",

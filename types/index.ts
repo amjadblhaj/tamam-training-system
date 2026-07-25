@@ -272,6 +272,17 @@ export interface BranchRegistrationLink {
   registration_token: string;
 }
 
+export interface BranchLeaderboardLink {
+  id: number;
+  name_ar: string;
+  leaderboard_token: string;
+}
+
+export interface OverallLeaderboardLink {
+  academy_name: string;
+  leaderboard_token: string;
+}
+
 export interface LeaderboardEntry {
   id: number;
   full_name: string;
