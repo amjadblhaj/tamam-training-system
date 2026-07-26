@@ -2,389 +2,29 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { X, KeyRound } from "lucide-react";
+import { KeyRound } from "lucide-react";
 import { TenantStatusBadge } from "@/components/super-admin/TenantStatusBadge";
 import { useToast } from "@/components/providers/toast-provider";
 import { getDaysRemaining } from "@/lib/tenant/access";
-import {
-  activateTenantSubscription,
-  suspendTenantAccount,
-  reactivateTenantAccount,
-  addTenantBranchAddon,
-  extendTenantTrial,
-  setTenantMaxBranches,
-  resetStaffPassword,
-  deleteTenant,
-} from "@/lib/actions/super-admin-tenants";
+import { suspendTenantAccount } from "@/lib/actions/super-admin-tenants";
+import { ActivateModal } from "@/components/super-admin/modals/ActivateModal";
+import { ReactivateModal } from "@/components/super-admin/modals/ReactivateModal";
+import { AddonModal } from "@/components/super-admin/modals/AddonModal";
+import { ExtendTrialModal } from "@/components/super-admin/modals/ExtendTrialModal";
+import { MaxBranchesModal } from "@/components/super-admin/modals/MaxBranchesModal";
+import { ResetPasswordModal } from "@/components/super-admin/modals/ResetPasswordModal";
+import { DeleteTenantModal } from "@/components/super-admin/modals/DeleteTenantModal";
 import type { TenantDetail } from "@/types";
 
-const inputClass =
-  "w-full rounded-lg border border-brand-border px-3 py-2 text-brand-text focus:border-brand-orange focus:outline-none";
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <label className="mb-1 block text-sm font-medium text-brand-text">{label}</label>
-      {children}
-    </div>
-  );
-}
-
-function ModalShell({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-md rounded-2xl bg-brand-surface p-6 shadow-xl">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-brand-text">{title}</h2>
-          <button onClick={onClose} className="text-brand-text-2 transition-colors hover:text-brand-text">
-            <X size={20} />
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function ActivateModal({ tenantId, onClose, onDone }: { tenantId: string; onClose: () => void; onDone: () => void }) {
-  const toast = useToast();
-  const [months, setMonths] = useState(12);
-  const [paymentRef, setPaymentRef] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  async function handleConfirm() {
-    setLoading(true);
-    const result = await activateTenantSubscription(tenantId, { months, paymentRef });
-    setLoading(false);
-    if (!result.success) {
-      toast.error(result.error ?? "حدث خطأ ما");
-      return;
-    }
-    toast.success("تم تفعيل الاشتراك بنجاح");
-    onDone();
-  }
-
-  return (
-    <ModalShell title="تفعيل اشتراك" onClose={onClose}>
-      <div className="space-y-4">
-        <Field label="المدة">
-          <select value={months} onChange={(e) => setMonths(Number(e.target.value))} className={inputClass}>
-            <option value={12}>12 شهر</option>
-            <option value={6}>6 أشهر</option>
-            <option value={3}>3 أشهر</option>
-            <option value={1}>شهر واحد</option>
-          </select>
-        </Field>
-        <Field label="مرجع الدفع (اختياري)">
-          <input value={paymentRef} onChange={(e) => setPaymentRef(e.target.value)} className={inputClass} />
-        </Field>
-        <button
-          onClick={handleConfirm}
-          disabled={loading}
-          className="w-full rounded-lg bg-brand-green py-2.5 font-semibold text-white transition-colors hover:bg-brand-green-dark disabled:opacity-60"
-        >
-          {loading ? "جاري التفعيل..." : "تأكيد التفعيل"}
-        </button>
-      </div>
-    </ModalShell>
-  );
-}
-
-function ReactivateModal({ tenantId, onClose, onDone }: { tenantId: string; onClose: () => void; onDone: () => void }) {
-  const toast = useToast();
-  const [months, setMonths] = useState(12);
-  const [loading, setLoading] = useState(false);
-
-  async function handleConfirm() {
-    setLoading(true);
-    const result = await reactivateTenantAccount(tenantId, months);
-    setLoading(false);
-    if (!result.success) {
-      toast.error(result.error ?? "حدث خطأ ما");
-      return;
-    }
-    toast.success("تم إعادة تفعيل الحساب بنجاح");
-    onDone();
-  }
-
-  return (
-    <ModalShell title="إعادة تفعيل الحساب" onClose={onClose}>
-      <div className="space-y-4">
-        <Field label="المدة">
-          <select value={months} onChange={(e) => setMonths(Number(e.target.value))} className={inputClass}>
-            <option value={12}>12 شهر</option>
-            <option value={6}>6 أشهر</option>
-            <option value={3}>3 أشهر</option>
-          </select>
-        </Field>
-        <button
-          onClick={handleConfirm}
-          disabled={loading}
-          className="w-full rounded-lg bg-brand-green py-2.5 font-semibold text-white transition-colors hover:bg-brand-green-dark disabled:opacity-60"
-        >
-          {loading ? "جاري التفعيل..." : "تأكيد إعادة التفعيل"}
-        </button>
-      </div>
-    </ModalShell>
-  );
-}
-
-function AddonModal({ tenantId, onClose, onDone }: { tenantId: string; onClose: () => void; onDone: () => void }) {
-  const toast = useToast();
-  const [branches, setBranches] = useState(1);
-  const [paymentRef, setPaymentRef] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  async function handleConfirm() {
-    setLoading(true);
-    const result = await addTenantBranchAddon(tenantId, { branches, paymentRef });
-    setLoading(false);
-    if (!result.success) {
-      toast.error(result.error ?? "حدث خطأ ما");
-      return;
-    }
-    toast.success("تمت إضافة الفروع بنجاح");
-    onDone();
-  }
-
-  return (
-    <ModalShell title="إضافة فرع" onClose={onClose}>
-      <div className="space-y-4">
-        <Field label="عدد الفروع">
-          <input
-            type="number"
-            min={1}
-            value={branches}
-            onChange={(e) => setBranches(Number(e.target.value))}
-            className={inputClass}
-          />
-        </Field>
-        <Field label="مرجع الدفع (اختياري)">
-          <input value={paymentRef} onChange={(e) => setPaymentRef(e.target.value)} className={inputClass} />
-        </Field>
-        <button
-          onClick={handleConfirm}
-          disabled={loading}
-          className="w-full rounded-lg bg-brand-green py-2.5 font-semibold text-white transition-colors hover:bg-brand-green-dark disabled:opacity-60"
-        >
-          {loading ? "جاري الإضافة..." : "تأكيد الإضافة"}
-        </button>
-      </div>
-    </ModalShell>
-  );
-}
-
-function ExtendTrialModal({ tenantId, onClose, onDone }: { tenantId: string; onClose: () => void; onDone: () => void }) {
-  const toast = useToast();
-  const [days, setDays] = useState(7);
-  const [loading, setLoading] = useState(false);
-
-  async function handleConfirm() {
-    setLoading(true);
-    const result = await extendTenantTrial(tenantId, days);
-    setLoading(false);
-    if (!result.success) {
-      toast.error(result.error ?? "حدث خطأ ما");
-      return;
-    }
-    toast.success("تم تمديد الفترة التجريبية");
-    onDone();
-  }
-
-  return (
-    <ModalShell title="تمديد الفترة التجريبية" onClose={onClose}>
-      <div className="space-y-4">
-        <Field label="عدد الأيام الإضافية">
-          <input
-            type="number"
-            min={1}
-            value={days}
-            onChange={(e) => setDays(Number(e.target.value))}
-            className={inputClass}
-          />
-        </Field>
-        <button
-          onClick={handleConfirm}
-          disabled={loading}
-          className="w-full rounded-lg bg-brand-green py-2.5 font-semibold text-white transition-colors hover:bg-brand-green-dark disabled:opacity-60"
-        >
-          {loading ? "جاري التمديد..." : "تأكيد التمديد"}
-        </button>
-      </div>
-    </ModalShell>
-  );
-}
-
-function MaxBranchesModal({
-  tenantId,
-  currentMax,
-  onClose,
-  onDone,
-}: {
-  tenantId: string;
-  currentMax: number;
-  onClose: () => void;
-  onDone: () => void;
-}) {
-  const toast = useToast();
-  const [unlimited, setUnlimited] = useState(currentMax === -1);
-  const [maxBranches, setMaxBranches] = useState(currentMax === -1 ? 5 : currentMax);
-  const [loading, setLoading] = useState(false);
-
-  async function handleConfirm() {
-    setLoading(true);
-    const result = await setTenantMaxBranches(tenantId, unlimited ? -1 : maxBranches);
-    setLoading(false);
-    if (!result.success) {
-      toast.error(result.error ?? "حدث خطأ ما");
-      return;
-    }
-    toast.success("تم تحديث الحد الأقصى للفروع");
-    onDone();
-  }
-
-  return (
-    <ModalShell title="تعديل الحد الأقصى للفروع" onClose={onClose}>
-      <div className="space-y-4">
-        <label className="flex items-center gap-2 text-sm text-brand-text">
-          <input type="checkbox" checked={unlimited} onChange={(e) => setUnlimited(e.target.checked)} />
-          غير محدود
-        </label>
-        {!unlimited && (
-          <Field label="الحد الأقصى لعدد الفروع">
-            <input
-              type="number"
-              min={1}
-              value={maxBranches}
-              onChange={(e) => setMaxBranches(Number(e.target.value))}
-              className={inputClass}
-            />
-          </Field>
-        )}
-        <button
-          onClick={handleConfirm}
-          disabled={loading}
-          className="w-full rounded-lg bg-brand-green py-2.5 font-semibold text-white transition-colors hover:bg-brand-green-dark disabled:opacity-60"
-        >
-          {loading ? "جاري الحفظ..." : "حفظ"}
-        </button>
-      </div>
-    </ModalShell>
-  );
-}
-
-function ResetPasswordModal({
-  staffId,
-  username,
-  onClose,
-  onDone,
-}: {
-  staffId: string;
-  username: string;
-  onClose: () => void;
-  onDone: () => void;
-}) {
-  const toast = useToast();
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  async function handleConfirm() {
-    if (password.length < 6) {
-      toast.error("كلمة المرور يجب ألا تقل عن 6 أحرف");
-      return;
-    }
-    setLoading(true);
-    const result = await resetStaffPassword(staffId, password);
-    setLoading(false);
-    if (!result.success) {
-      toast.error(result.error ?? "حدث خطأ ما");
-      return;
-    }
-    toast.success(`تم تغيير كلمة مرور "${username}" بنجاح`);
-    onDone();
-  }
-
-  return (
-    <ModalShell title={`تغيير كلمة مرور: ${username}`} onClose={onClose}>
-      <div className="space-y-4">
-        <Field label="كلمة المرور الجديدة">
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className={inputClass}
-          />
-        </Field>
-        <button
-          onClick={handleConfirm}
-          disabled={loading}
-          className="w-full rounded-lg bg-brand-green py-2.5 font-semibold text-white transition-colors hover:bg-brand-green-dark disabled:opacity-60"
-        >
-          {loading ? "جاري الحفظ..." : "حفظ كلمة المرور"}
-        </button>
-      </div>
-    </ModalShell>
-  );
-}
-
-function DeleteTenantModal({
-  tenantId,
-  academyName,
-  onClose,
-  onDeleted,
-}: {
-  tenantId: string;
-  academyName: string;
-  onClose: () => void;
-  onDeleted: () => void;
-}) {
-  const toast = useToast();
-  const [confirmText, setConfirmText] = useState("");
-  const [loading, setLoading] = useState(false);
-  const canDelete = confirmText.trim() === academyName;
-
-  async function handleConfirm() {
-    if (!canDelete) return;
-    setLoading(true);
-    const result = await deleteTenant(tenantId);
-    setLoading(false);
-    if (!result.success) {
-      toast.error(result.error ?? "حدث خطأ ما");
-      return;
-    }
-    toast.success("تم حذف الحساب نهائيًا");
-    onDeleted();
-  }
-
-  return (
-    <ModalShell title="حذف الحساب نهائيًا" onClose={onClose}>
-      <div className="space-y-4">
-        <p className="text-sm text-brand-orange">
-          هذا الإجراء نهائي ولا يمكن التراجع عنه. سيتم حذف جميع بيانات &quot;{academyName}&quot; (الطلاب، الفروع،
-          الموظفون، سجل النقاط، المكافآت) بشكل دائم.
-        </p>
-        <Field label={`اكتب اسم الأكاديمية للتأكيد: "${academyName}"`}>
-          <input value={confirmText} onChange={(e) => setConfirmText(e.target.value)} className={inputClass} />
-        </Field>
-        <button
-          onClick={handleConfirm}
-          disabled={!canDelete || loading}
-          className="w-full rounded-lg bg-brand-orange py-2.5 font-semibold text-white transition-colors hover:opacity-90 disabled:opacity-40"
-        >
-          {loading ? "جاري الحذف..." : "حذف نهائيًا"}
-        </button>
-      </div>
-    </ModalShell>
-  );
-}
+type ActiveModal = "activate" | "reactivate" | "addon" | "extend" | "maxBranches" | "delete" | null;
 
 export function TenantDetailClient({ tenant }: { tenant: TenantDetail }) {
   const router = useRouter();
   const toast = useToast();
-  const [activeModal, setActiveModal] = useState<
-    "activate" | "reactivate" | "addon" | "extend" | "maxBranches" | "delete" | null
-  >(null);
-  const [resetPasswordTarget, setResetPasswordTarget] = useState<{ id: string; username: string } | null>(null);
+  const [activeModal, setActiveModal] = useState<ActiveModal>(null);
+  const [resetPasswordTarget, setResetPasswordTarget] = useState<{ id: string; username: string } | null>(
+    null
+  );
   const [suspending, setSuspending] = useState(false);
 
   function refresh() {
@@ -394,7 +34,8 @@ export function TenantDetailClient({ tenant }: { tenant: TenantDetail }) {
   }
 
   async function handleSuspend() {
-    if (!confirm(`هل تريد تعليق حساب "${tenant.academy_name}"؟ سيتحول العميل لوضع القراءة فقط فورًا.`)) return;
+    if (!confirm(`هل تريد تعليق حساب "${tenant.academy_name}"؟ سيتحول العميل لوضع القراءة فقط فورًا.`))
+      return;
     setSuspending(true);
     const result = await suspendTenantAccount(tenant.id);
     setSuspending(false);
@@ -419,10 +60,21 @@ export function TenantDetailClient({ tenant }: { tenant: TenantDetail }) {
         <div className="rounded-xl border border-brand-border bg-brand-surface p-5">
           <h2 className="mb-3 font-semibold text-brand-text">معلومات العميل</h2>
           <div className="space-y-1.5 text-sm text-brand-text-2">
-            <p>المالك: <span className="text-brand-text">{tenant.owner_name}</span></p>
-            <p>البريد الإلكتروني: <span className="text-brand-text">{tenant.owner_email}</span></p>
-            {tenant.owner_phone && <p>الهاتف: <span className="text-brand-text">{tenant.owner_phone}</span></p>}
-            <p>تاريخ الإنشاء: <span className="text-brand-text">{new Date(tenant.created_at).toLocaleDateString("ar")}</span></p>
+            <p>
+              المالك: <span className="text-brand-text">{tenant.owner_name}</span>
+            </p>
+            <p>
+              البريد الإلكتروني: <span className="text-brand-text">{tenant.owner_email}</span>
+            </p>
+            {tenant.owner_phone && (
+              <p>
+                الهاتف: <span className="text-brand-text">{tenant.owner_phone}</span>
+              </p>
+            )}
+            <p>
+              تاريخ الإنشاء:{" "}
+              <span className="text-brand-text">{new Date(tenant.created_at).toLocaleDateString("ar")}</span>
+            </p>
           </div>
         </div>
 
@@ -433,10 +85,17 @@ export function TenantDetailClient({ tenant }: { tenant: TenantDetail }) {
           </div>
           <div className="space-y-1.5 text-sm text-brand-text-2">
             <p>
-              الفروع: <span className="text-brand-text">{tenant.branches_used} / {tenant.total_branches_allowed === -1 ? "غير محدود" : tenant.total_branches_allowed}</span>
+              الفروع:{" "}
+              <span className="text-brand-text">
+                {tenant.branches_used} /{" "}
+                {tenant.total_branches_allowed === -1 ? "غير محدود" : tenant.total_branches_allowed}
+              </span>
             </p>
             <p>
-              الطلاب: <span className="text-brand-text">{tenant.students_count} / {tenant.max_students === -1 ? "غير محدود" : tenant.max_students}</span>
+              الطلاب:{" "}
+              <span className="text-brand-text">
+                {tenant.students_count} / {tenant.max_students === -1 ? "غير محدود" : tenant.max_students}
+              </span>
             </p>
             {daysLeft !== null && (
               <p className={daysLeft <= 7 ? "font-semibold text-brand-orange" : ""}>
@@ -453,7 +112,7 @@ export function TenantDetailClient({ tenant }: { tenant: TenantDetail }) {
         <div className="flex flex-wrap gap-3">
           <button
             onClick={() => setActiveModal("activate")}
-            className="rounded-lg bg-brand-green px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-green-dark"
+            className="rounded-lg bg-brand-green px-4 py-2 text-sm font-semibold text-brand-dark transition-colors hover:bg-brand-green-dark"
           >
             تفعيل اشتراك
           </button>
@@ -492,7 +151,7 @@ export function TenantDetailClient({ tenant }: { tenant: TenantDetail }) {
           </button>
           <button
             onClick={() => setActiveModal("delete")}
-            className="rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-white transition-colors hover:opacity-90"
+            className="rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-brand-dark transition-colors hover:opacity-90"
           >
             حذف الحساب
           </button>
@@ -504,9 +163,13 @@ export function TenantDetailClient({ tenant }: { tenant: TenantDetail }) {
         {tenant.subscriptions.length > 0 ? (
           <ul className="space-y-2 text-sm">
             {tenant.subscriptions.map((s) => (
-              <li key={s.id} className="flex items-center justify-between rounded-lg bg-brand-surface-3 px-3 py-2">
+              <li
+                key={s.id}
+                className="flex items-center justify-between rounded-lg bg-brand-surface-3 px-3 py-2"
+              >
                 <span className="text-brand-text">
-                  {new Date(s.starts_at).toLocaleDateString("ar")} — {s.ends_at ? new Date(s.ends_at).toLocaleDateString("ar") : "بدون تاريخ انتهاء"}
+                  {new Date(s.starts_at).toLocaleDateString("ar")} —{" "}
+                  {s.ends_at ? new Date(s.ends_at).toLocaleDateString("ar") : "بدون تاريخ انتهاء"}
                 </span>
                 {s.payment_ref && <span className="text-brand-text-2">{s.payment_ref}</span>}
               </li>
@@ -522,7 +185,10 @@ export function TenantDetailClient({ tenant }: { tenant: TenantDetail }) {
         {tenant.staff.length > 0 ? (
           <ul className="space-y-2 text-sm">
             {tenant.staff.map((s) => (
-              <li key={s.id} className="flex items-center justify-between rounded-lg bg-brand-surface-3 px-3 py-2">
+              <li
+                key={s.id}
+                className="flex items-center justify-between rounded-lg bg-brand-surface-3 px-3 py-2"
+              >
                 <span className="text-brand-text">{s.username}</span>
                 <div className="flex items-center gap-3">
                   <span className="text-brand-text-2">{s.role === "admin" ? "مدير" : "موظف"}</span>

@@ -3,6 +3,7 @@
 import { getSupabaseAdmin } from "@/lib/supabase/server";
 import { getSession } from "@/lib/auth/get-session";
 import { assertTenantCanWrite } from "@/lib/tenant/resolve-status";
+import { relationValue } from "@/lib/supabase/relation";
 import type { PortalReward, PortalTransaction, RedeemResult, LeaderboardEntry } from "@/types";
 import type { SessionPayload } from "@/lib/auth/session";
 
@@ -85,7 +86,7 @@ export async function getOverallLeaderboard(): Promise<LeaderboardEntry[]> {
     id: s.id,
     full_name: s.full_name,
     points: s.points,
-    branch_name_ar: (s.branches as unknown as { name_ar: string } | null)?.name_ar ?? null,
+    branch_name_ar: relationValue<string>(s.branches, "name_ar"),
   }));
 }
 

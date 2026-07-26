@@ -4,6 +4,7 @@ import { getSupabaseAdmin } from "@/lib/supabase/server";
 import { getSession } from "@/lib/auth/get-session";
 import { assertTenantCanWrite } from "@/lib/tenant/resolve-status";
 import { rewardSchema, type RewardInput } from "@/lib/validations/reward";
+import { recordAuditLog } from "@/lib/audit";
 import type { Reward, ActionResult } from "@/types";
 
 async function requireAdminWriteAccess() {
@@ -83,7 +84,11 @@ export async function toggleRewardActive(id: number, active: boolean): Promise<A
   if (!session) return { success: false, error: accessError };
 
   const db = getSupabaseAdmin();
-  const { error } = await db.from("rewards").update({ active }).eq("id", id).eq("tenant_id", session.tenantId);
+  const { error } = await db
+    .from("rewards")
+    .update({ active })
+    .eq("id", id)
+    .eq("tenant_id", session.tenantId);
   if (error) return { success: false, error: "حدث خطأ ما" };
   return { success: true };
 }
@@ -95,5 +100,15 @@ export async function deleteReward(id: number): Promise<ActionResult> {
   const db = getSupabaseAdmin();
   const { error } = await db.from("rewards").delete().eq("id", id).eq("tenant_id", session.tenantId);
   if (error) return { success: false, error: "حدث خطأ أثناء حذف المكافأة" };
+
+  await recordAuditLog({
+    tenantId: session.tenantId,
+    actor: session.name,
+    actorRole: session.role,
+    action: "reward_deleted",
+    entity: "reward",
+    entityId: String(id),
+  });
+
   return { success: true };
 }

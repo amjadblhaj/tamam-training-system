@@ -1,13 +1,16 @@
 import type { TenantStatus } from "@/types";
 
+/** True when a tenant is in read-only mode (all write actions hidden/blocked). */
 export function isReadOnly(status: TenantStatus): boolean {
   return status === "suspended" || status === "expired";
 }
 
+/** True when a tenant may perform writes (trial or active subscription). */
 export function canOperate(status: TenantStatus): boolean {
   return status === "trial" || status === "active";
 }
 
+/** User-facing Arabic explanation for why a suspended/expired tenant is read-only, or null if not applicable. */
 export function getAccessMessage(status: TenantStatus): string | null {
   if (status === "suspended") {
     return "اشتراكك موقوف مؤقتاً — تواصل معنا لإعادة التفعيل";
@@ -24,10 +27,14 @@ interface TenantExpiryInfo {
   subscription_ends_at: string | null;
 }
 
-// Trial tenants count down to trial_ends_at, active tenants to
-// subscription_ends_at; suspended/expired tenants have no applicable
-// countdown (null). Shared by the tenants list and detail pages so both
-// report the same number.
+/**
+ * Days remaining until a tenant's trial or subscription expires.
+ *
+ * Trial tenants count down to `trial_ends_at`, active tenants to
+ * `subscription_ends_at`; suspended/expired tenants have no applicable
+ * countdown (`null`). Shared by the tenants list and detail pages so both
+ * report the same number.
+ */
 export function getDaysRemaining(tenant: TenantExpiryInfo): number | null {
   const expiryDate = tenant.status === "trial" ? tenant.trial_ends_at : tenant.subscription_ends_at;
   if (!expiryDate) return null;

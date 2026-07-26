@@ -20,7 +20,9 @@ export function ReadOnlyBanner() {
       <div className="flex items-center gap-2.5">
         <span className="text-lg">{isSuspended ? "⚠️" : "🔒"}</span>
         <div>
-          <p className={`text-sm font-bold ${isSuspended ? "text-[#92400E]" : "text-[#991B1B]"}`}>{message}</p>
+          <p className={`text-sm font-bold ${isSuspended ? "text-[#92400E]" : "text-[#991B1B]"}`}>
+            {message}
+          </p>
           <p className={`mt-0.5 text-xs ${isSuspended ? "text-[#B45309]" : "text-[#B91C1C]"}`}>
             وضع القراءة فقط — لا يمكن إجراء أي تعديلات
           </p>

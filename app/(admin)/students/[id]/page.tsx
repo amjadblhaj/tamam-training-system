@@ -29,7 +29,11 @@ export default async function StudentDetailPage({ params }: { params: { id: stri
         </div>
         {student.active && (
           <div className="flex items-center gap-2">
-            <TransferStudentButton studentId={student.id} currentBranchId={student.branch_id} branches={branches} />
+            <TransferStudentButton
+              studentId={student.id}
+              currentBranchId={student.branch_id}
+              branches={branches}
+            />
             <DeactivateStudentButton studentId={student.id} />
           </div>
         )}
@@ -43,7 +47,11 @@ export default async function StudentDetailPage({ params }: { params: { id: stri
               {history.map((h) => (
                 <li key={h.id} className="flex items-center justify-between">
                   <span className="text-brand-text">{h.action}</span>
-                  <span className={h.points >= 0 ? "font-semibold text-brand-green" : "font-semibold text-brand-orange"}>
+                  <span
+                    className={
+                      h.points >= 0 ? "font-semibold text-brand-green" : "font-semibold text-brand-orange"
+                    }
+                  >
                     {h.points >= 0 ? `+${h.points}` : h.points}
                   </span>
                 </li>

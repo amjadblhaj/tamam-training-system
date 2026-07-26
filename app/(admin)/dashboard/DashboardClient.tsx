@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Users, Gift, Award, Building2, TrendingUp, Activity } from "lucide-react";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { SkeletonRows } from "@/components/shared/SkeletonRows";
 import { getDashboardMetrics, getTopStudents, getRecentActivity } from "./actions";
 import type { Branch } from "@/types";
 
@@ -56,16 +57,26 @@ export function DashboardClient({ branches }: { branches: Branch[] }) {
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MetricCard label="إجمالي الطلاب" value={metrics?.totalStudents ?? "—"} icon={Users} />
-        <MetricCard label="إجمالي النقاط الممنوحة" value={metrics?.totalPointsGranted ?? "—"} icon={TrendingUp} accent="orange" />
+        <MetricCard
+          label="إجمالي النقاط الممنوحة"
+          value={metrics?.totalPointsGranted ?? "—"}
+          icon={TrendingUp}
+          accent="orange"
+        />
         <MetricCard label="المكافآت المستبدلة" value={metrics?.rewardsRedeemed ?? "—"} icon={Gift} />
-        <MetricCard label="الفروع النشطة" value={metrics?.activeBranches ?? "—"} icon={Building2} accent="orange" />
+        <MetricCard
+          label="الفروع النشطة"
+          value={metrics?.activeBranches ?? "—"}
+          icon={Building2}
+          accent="orange"
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="rounded-xl border border-brand-border bg-brand-surface p-5">
           <h2 className="mb-4 font-semibold text-brand-text">أفضل 5 طلاب</h2>
           {topStudentsQuery.isLoading ? (
-            <SkeletonRows />
+            <div className="space-y-3"><SkeletonRows count={3} height="h-5" /></div>
           ) : topStudentsQuery.data && topStudentsQuery.data.length > 0 ? (
             <ul className="space-y-3">
               {topStudentsQuery.data.map((s, i) => (
@@ -85,7 +96,7 @@ export function DashboardClient({ branches }: { branches: Branch[] }) {
         <div className="rounded-xl border border-brand-border bg-brand-surface p-5">
           <h2 className="mb-4 font-semibold text-brand-text">آخر النشاطات</h2>
           {activityQuery.isLoading ? (
-            <SkeletonRows />
+            <div className="space-y-3"><SkeletonRows count={3} height="h-5" /></div>
           ) : activityQuery.data && activityQuery.data.length > 0 ? (
             <ul className="space-y-3">
               {activityQuery.data.map((a) => (
@@ -93,7 +104,11 @@ export function DashboardClient({ branches }: { branches: Branch[] }) {
                   <span className="text-brand-text">
                     {a.student_name} — {a.action}
                   </span>
-                  <span className={a.points >= 0 ? "font-semibold text-brand-green" : "font-semibold text-brand-orange"}>
+                  <span
+                    className={
+                      a.points >= 0 ? "font-semibold text-brand-green" : "font-semibold text-brand-orange"
+                    }
+                  >
                     {a.points >= 0 ? `+${a.points}` : a.points}
                   </span>
                 </li>
@@ -104,16 +119,6 @@ export function DashboardClient({ branches }: { branches: Branch[] }) {
           )}
         </div>
       </div>
-    </div>
-  );
-}
-
-function SkeletonRows() {
-  return (
-    <div className="space-y-3">
-      {[1, 2, 3].map((i) => (
-        <div key={i} className="h-5 animate-pulse rounded bg-brand-surface-3" />
-      ))}
     </div>
   );
 }

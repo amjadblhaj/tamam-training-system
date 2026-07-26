@@ -70,9 +70,10 @@ export function LeaderboardClient({
             board.map((entry, index) => (
               <div
                 key={entry.id}
-                className={`flex items-center gap-3 rounded-xl p-4 ${
-                  entry.id === studentId ? "bg-brand-green/20 ring-1 ring-brand-green" : "bg-brand-dark-2"
+                className={`flex animate-in items-center gap-3 rounded-xl fade-in-0 slide-in-from-bottom-1 p-4 duration-300 ${
+                  entry.id === studentId ? "bg-brand-green/20 ring-2 ring-brand-green" : "bg-brand-dark-2"
                 }`}
+                style={{ animationDelay: `${index * 40}ms`, animationFillMode: "both" }}
               >
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-dark text-sm font-bold text-brand-orange">
                   {index === 0 ? <Trophy size={16} className="text-brand-orange" /> : index + 1}

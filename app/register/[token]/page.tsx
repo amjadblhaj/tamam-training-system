@@ -14,5 +14,7 @@ export default async function RegisterPage({ params }: { params: { token: string
     );
   }
 
-  return <RegisterClient token={params.token} branchNameAr={branch.name_ar} academyName={branch.academyName} />;
+  return (
+    <RegisterClient token={params.token} branchNameAr={branch.name_ar} academyName={branch.academyName} />
+  );
 }

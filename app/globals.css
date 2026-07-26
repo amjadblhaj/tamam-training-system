@@ -9,18 +9,35 @@
   }
 }
 
+/* Reward-redemption celebration burst (components/portal/ConfettiBurst.tsx).
+   Each particle's direction/rotation is randomized per-instance via the
+   --tx/--ty/--rot custom properties set inline, not here. */
+@keyframes confetti-burst {
+  0% {
+    transform: translate(0, 0) rotate(0deg) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--tx), var(--ty)) rotate(var(--rot)) scale(0.4);
+    opacity: 0;
+  }
+}
+.animate-confetti {
+  animation: confetti-burst 700ms ease-out forwards;
+}
+
 @layer base {
   .theme {
     --font-heading: var(--font-sans);
     --font-sans: var(--font-sans);
   }
   :root {
-    /* TAMAM brand palette */
-    --green: #56C96B;
-    --green-dark: #3DA854;
-    --green-light: #E8F5EB;
-    --orange: #E8440A;
-    --orange-light: #FFF0EB;
+    /* TAMAM brand palette — matches the logo's actual sampled colors */
+    --green: #86BC76;
+    --green-dark: #68925C;
+    --green-light: #EDF5EA;
+    --orange: #F18E64;
+    --orange-light: #FEF6F3;
     --dark: #1A2E1A;
     --dark-2: #243524;
     --surface: #FFFFFF;

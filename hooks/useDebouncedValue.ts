@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+/** Returns `value`, delayed by `delayMs` after it last changed — for debouncing search inputs etc. */
 export function useDebouncedValue<T>(value: T, delayMs: number): T {
   const [debounced, setDebounced] = useState(value);
 

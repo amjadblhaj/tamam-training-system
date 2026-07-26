@@ -34,7 +34,7 @@ export function SuperAdminShell({ username, logoutAction, children }: SuperAdmin
                 <Link
                   href={item.href}
                   className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                    isActive ? "bg-brand-orange text-white" : "text-brand-surface-2 hover:bg-brand-dark-2"
+                    isActive ? "bg-brand-orange text-brand-dark" : "text-brand-surface-2 hover:bg-brand-dark-2"
                   }`}
                 >
                   <Icon size={18} />

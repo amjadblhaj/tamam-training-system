@@ -1,9 +1,10 @@
 "use server";
 
-import bcrypt from "bcryptjs";
 import { getSupabaseAdmin } from "@/lib/supabase/server";
 import { getSession } from "@/lib/auth/get-session";
 import { assertTenantCanWrite } from "@/lib/tenant/resolve-status";
+import { comparePassword } from "@/lib/auth/password";
+import { recordAuditLog } from "@/lib/audit";
 import { createBranchSchema, type CreateBranchInput } from "@/lib/validations/branch";
 import type { BranchLimitInfo, BranchWithStats, ActionResult } from "@/types";
 
@@ -91,7 +92,7 @@ export async function deleteBranch(branchId: number, password: string): Promise<
   const { data: staff } = await db.from("staff").select("password").eq("id", session.id).maybeSingle();
   if (!staff) return { success: false, error: "حدث خطأ ما" };
 
-  const validPassword = await bcrypt.compare(password, staff.password);
+  const validPassword = await comparePassword(password, staff.password);
   if (!validPassword) {
     return { success: false, error: "كلمة المرور غير صحيحة" };
   }
@@ -118,5 +119,15 @@ export async function deleteBranch(branchId: number, password: string): Promise<
 
   const { error } = await db.from("branches").delete().eq("id", branchId).eq("tenant_id", session.tenantId);
   if (error) return { success: false, error: "حدث خطأ أثناء حذف الفرع" };
+
+  await recordAuditLog({
+    tenantId: session.tenantId,
+    actor: session.name,
+    actorRole: session.role,
+    action: "branch_deleted",
+    entity: "branch",
+    entityId: String(branchId),
+  });
+
   return { success: true };
 }

@@ -2,10 +2,10 @@
 
 import { getSupabaseAdmin } from "@/lib/supabase/server";
 import { getSession } from "@/lib/auth/get-session";
+import { ACTIVITY_PAGE_SIZE } from "@/lib/constants";
 import type { ActivityLogParams, ActivityLogResult, ActivityLogRow } from "@/types";
-
-const PAGE_SIZE = 50;
-const SELECT_COLUMNS = "id, points, action, type, granted_by, created_at, students(full_name), branches(name_ar)";
+const SELECT_COLUMNS =
+  "id, points, action, type, granted_by, created_at, students(full_name), branches(name_ar)";
 
 type RawActivityRow = {
   id: number;
@@ -33,12 +33,12 @@ function mapRow(r: RawActivityRow): ActivityLogRow {
 
 export async function getActivityLog(params: ActivityLogParams): Promise<ActivityLogResult> {
   const session = await getSession();
-  if (!session) return { rows: [], total: 0, page: 1, pageSize: PAGE_SIZE };
+  if (!session) return { rows: [], total: 0, page: 1, pageSize: ACTIVITY_PAGE_SIZE };
 
   const db = getSupabaseAdmin();
   const page = params.page && params.page > 0 ? params.page : 1;
-  const from = (page - 1) * PAGE_SIZE;
-  const to = from + PAGE_SIZE - 1;
+  const from = (page - 1) * ACTIVITY_PAGE_SIZE;
+  const to = from + ACTIVITY_PAGE_SIZE - 1;
 
   let query = db
     .from("points_log")
@@ -49,7 +49,8 @@ export async function getActivityLog(params: ActivityLogParams): Promise<Activit
 
   if (params.branchId) query = query.eq("branch_id", params.branchId);
   if (params.type) query = query.eq("type", params.type);
-  if (params.staffUsername) query = query.ilike("granted_by", `%${params.staffUsername.replace(/[,()%]/g, "")}%`);
+  if (params.staffUsername)
+    query = query.ilike("granted_by", `%${params.staffUsername.replace(/[,()%]/g, "")}%`);
   if (params.dateFrom) query = query.gte("created_at", params.dateFrom);
   if (params.dateTo) query = query.lte("created_at", `${params.dateTo}T23:59:59`);
 
@@ -59,11 +60,13 @@ export async function getActivityLog(params: ActivityLogParams): Promise<Activit
     rows: ((data ?? []) as unknown as RawActivityRow[]).map(mapRow),
     total: count ?? 0,
     page,
-    pageSize: PAGE_SIZE,
+    pageSize: ACTIVITY_PAGE_SIZE,
   };
 }
 
-export async function getActivityLogForExport(params: Omit<ActivityLogParams, "page">): Promise<ActivityLogRow[]> {
+export async function getActivityLogForExport(
+  params: Omit<ActivityLogParams, "page">
+): Promise<ActivityLogRow[]> {
   const session = await getSession();
   if (!session || session.role !== "admin") return [];
 
@@ -77,7 +80,8 @@ export async function getActivityLogForExport(params: Omit<ActivityLogParams, "p
 
   if (params.branchId) query = query.eq("branch_id", params.branchId);
   if (params.type) query = query.eq("type", params.type);
-  if (params.staffUsername) query = query.ilike("granted_by", `%${params.staffUsername.replace(/[,()%]/g, "")}%`);
+  if (params.staffUsername)
+    query = query.ilike("granted_by", `%${params.staffUsername.replace(/[,()%]/g, "")}%`);
   if (params.dateFrom) query = query.gte("created_at", params.dateFrom);
   if (params.dateTo) query = query.lte("created_at", `${params.dateTo}T23:59:59`);
 

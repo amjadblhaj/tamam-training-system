@@ -1,8 +1,11 @@
 "use server";
 
-import bcrypt from "bcryptjs";
 import { getSupabaseAdmin } from "@/lib/supabase/server";
 import { getSuperAdminSession } from "@/lib/auth/get-super-admin-session";
+import { hashPassword } from "@/lib/auth/password";
+import { revokeAllSessionsForSubject } from "@/lib/auth/session-store";
+import { relationValue } from "@/lib/supabase/relation";
+import { recordAuditLog } from "@/lib/audit";
 import type {
   TenantRow,
   TenantDetail,
@@ -54,13 +57,20 @@ export async function getTenantDetail(tenantId: string): Promise<TenantDetail | 
   await requireSuperAdmin();
   const db = getSupabaseAdmin();
 
-  const { data: rawTenant } = await db.from("tenant_stats").select("*").eq("tenant_id", tenantId).maybeSingle();
+  const { data: rawTenant } = await db
+    .from("tenant_stats")
+    .select("*")
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
   if (!rawTenant) return null;
   const tenant = mapTenantStatsRow(rawTenant);
 
   const [{ data: subscriptions }, { data: staff }] = await Promise.all([
     db.from("subscriptions").select("*").eq("tenant_id", tenantId).order("created_at", { ascending: false }),
-    db.from("staff").select("id, username, role, branch_id, active, branches(name_ar)").eq("tenant_id", tenantId),
+    db
+      .from("staff")
+      .select("id, username, role, branch_id, active, branches(name_ar)")
+      .eq("tenant_id", tenantId),
   ]);
 
   const staffRows: StaffRow[] = (staff ?? []).map((s) => ({
@@ -68,7 +78,7 @@ export async function getTenantDetail(tenantId: string): Promise<TenantDetail | 
     username: s.username,
     role: s.role,
     branch_id: s.branch_id,
-    branch_name_ar: (s.branches as unknown as { name_ar: string } | null)?.name_ar ?? null,
+    branch_name_ar: relationValue<string>(s.branches, "name_ar"),
     active: s.active,
   }));
 
@@ -80,9 +90,15 @@ export async function getTenantDetail(tenantId: string): Promise<TenantDetail | 
 }
 
 export async function createTenant(input: CreateTenantInput): Promise<CreateTenantResult> {
-  await requireSuperAdmin();
+  const saSession = await requireSuperAdmin();
 
-  if (!input.academyName || !input.ownerName || !input.ownerEmail || !input.adminUsername || !input.adminPassword) {
+  if (
+    !input.academyName ||
+    !input.ownerName ||
+    !input.ownerEmail ||
+    !input.adminUsername ||
+    !input.adminPassword
+  ) {
     return { success: false, error: "يرجى تعبئة جميع الحقول المطلوبة" };
   }
 
@@ -144,7 +160,7 @@ export async function createTenant(input: CreateTenantInput): Promise<CreateTena
     return { success: false, error: "حدث خطأ أثناء إنشاء الفرع الافتراضي" };
   }
 
-  const hashed = await bcrypt.hash(input.adminPassword, 12);
+  const hashed = await hashPassword(input.adminPassword);
   const { error: staffError } = await db.from("staff").insert({
     username: input.adminUsername,
     password: hashed,
@@ -156,6 +172,16 @@ export async function createTenant(input: CreateTenantInput): Promise<CreateTena
   if (staffError) {
     return { success: false, error: "حدث خطأ أثناء إنشاء حساب المدير" };
   }
+
+  await recordAuditLog({
+    tenantId: tenant.id,
+    actor: saSession.username,
+    actorRole: "super_admin",
+    action: "tenant_created",
+    entity: "tenant",
+    entityId: tenant.id,
+    metadata: { academyName: input.academyName },
+  });
 
   await db.from("rewards").insert([
     {
@@ -176,7 +202,11 @@ export async function createTenant(input: CreateTenantInput): Promise<CreateTena
 
   return {
     success: true,
-    credentials: { username: input.adminUsername, password: input.adminPassword, academyName: input.academyName },
+    credentials: {
+      username: input.adminUsername,
+      password: input.adminPassword,
+      academyName: input.academyName,
+    },
   };
 }
 
@@ -209,22 +239,53 @@ export async function activateTenantSubscription(
     created_by: saSession.username,
   });
 
+  await recordAuditLog({
+    tenantId,
+    actor: saSession.username,
+    actorRole: "super_admin",
+    action: "subscription_activated",
+    entity: "tenant",
+    entityId: tenantId,
+    metadata: { months: input.months },
+  });
+
   return { success: true };
 }
 
 export async function suspendTenantAccount(tenantId: string): Promise<ActionResult> {
-  await requireSuperAdmin();
+  const saSession = await requireSuperAdmin();
   const db = getSupabaseAdmin();
   const { data, error } = await db.rpc("suspend_tenant", { p_tenant_id: tenantId });
   if (error || !data?.success) return { success: false, error: "حدث خطأ ما" };
+
+  await recordAuditLog({
+    tenantId,
+    actor: saSession.username,
+    actorRole: "super_admin",
+    action: "tenant_suspended",
+    entity: "tenant",
+    entityId: tenantId,
+  });
+
   return { success: true };
 }
 
 export async function reactivateTenantAccount(tenantId: string, months: number): Promise<ActionResult> {
-  await requireSuperAdmin();
+  const saSession = await requireSuperAdmin();
   const db = getSupabaseAdmin();
   const { data, error } = await db.rpc("reactivate_tenant", { p_tenant_id: tenantId, p_months: months });
   if (error || !data?.success) return { success: false, error: "حدث خطأ ما" };
+
+  await recordAuditLog({
+    tenantId,
+    actor: saSession.username,
+    actorRole: "super_admin",
+    action: "tenant_reactivated",
+    entity: "tenant",
+    entityId: tenantId,
+    metadata: { months },
+  });
+
   return { success: true };
 }
 
@@ -242,47 +303,107 @@ export async function addTenantBranchAddon(
     p_created_by: saSession.username,
   });
   if (error || !data?.success) return { success: false, error: "حدث خطأ ما" };
+
+  await recordAuditLog({
+    tenantId,
+    actor: saSession.username,
+    actorRole: "super_admin",
+    action: "branch_addon_added",
+    entity: "tenant",
+    entityId: tenantId,
+    metadata: { branches: input.branches },
+  });
+
   return { success: true };
 }
 
 export async function extendTenantTrial(tenantId: string, days: number): Promise<ActionResult> {
-  await requireSuperAdmin();
+  const saSession = await requireSuperAdmin();
   const db = getSupabaseAdmin();
   const { data, error } = await db.rpc("extend_trial", { p_tenant_id: tenantId, p_days: days });
   if (error || !data?.success) return { success: false, error: "حدث خطأ ما" };
+
+  await recordAuditLog({
+    tenantId,
+    actor: saSession.username,
+    actorRole: "super_admin",
+    action: "trial_extended",
+    entity: "tenant",
+    entityId: tenantId,
+    metadata: { days },
+  });
+
   return { success: true };
 }
 
 export async function setTenantMaxBranches(tenantId: string, maxBranches: number): Promise<ActionResult> {
-  await requireSuperAdmin();
+  const saSession = await requireSuperAdmin();
   if (!Number.isInteger(maxBranches) || (maxBranches < 1 && maxBranches !== -1)) {
     return { success: false, error: "قيمة غير صحيحة" };
   }
   const db = getSupabaseAdmin();
   const { error } = await db.from("tenants").update({ max_branches: maxBranches }).eq("id", tenantId);
   if (error) return { success: false, error: "حدث خطأ ما" };
+
+  await recordAuditLog({
+    tenantId,
+    actor: saSession.username,
+    actorRole: "super_admin",
+    action: "max_branches_changed",
+    entity: "tenant",
+    entityId: tenantId,
+    metadata: { maxBranches },
+  });
+
   return { success: true };
 }
 
 export async function resetStaffPassword(staffId: string, newPassword: string): Promise<ActionResult> {
-  await requireSuperAdmin();
+  const saSession = await requireSuperAdmin();
   if (!newPassword || newPassword.length < 6) {
     return { success: false, error: "كلمة المرور يجب ألا تقل عن 6 أحرف" };
   }
   const db = getSupabaseAdmin();
-  const hashed = await bcrypt.hash(newPassword, 12);
+  const hashed = await hashPassword(newPassword);
   const { error } = await db.from("staff").update({ password: hashed }).eq("id", staffId);
   if (error) return { success: false, error: "حدث خطأ ما" };
+
+  // A leaked/forgotten old password shouldn't leave existing sessions valid.
+  await revokeAllSessionsForSubject("staff", staffId);
+  await recordAuditLog({
+    tenantId: null,
+    actor: saSession.username,
+    actorRole: "super_admin",
+    action: "staff_password_reset",
+    entity: "staff",
+    entityId: staffId,
+  });
+
   return { success: true };
 }
 
 export async function deleteTenant(tenantId: string): Promise<ActionResult> {
-  await requireSuperAdmin();
+  const saSession = await requireSuperAdmin();
   const db = getSupabaseAdmin();
+
+  const { data: tenant } = await db.from("tenants").select("academy_name").eq("id", tenantId).maybeSingle();
+
   // Cascades to branches/staff/students/rewards/points_log/redemptions/
-  // subscriptions/branch_addons via ON DELETE CASCADE (schema.sql + the
-  // Mazaya migration) — deleting the tenant row is sufficient.
+  // subscriptions/branch_addons/sessions via ON DELETE CASCADE (schema.sql,
+  // the Mazaya migration, and sessions-upgrade.sql) — deleting the tenant
+  // row is sufficient, and immediately invalidates every session for it.
   const { error } = await db.from("tenants").delete().eq("id", tenantId);
   if (error) return { success: false, error: "حدث خطأ أثناء حذف الحساب" };
+
+  await recordAuditLog({
+    tenantId: null, // the tenant row is gone — FK would reject a non-null reference
+    actor: saSession.username,
+    actorRole: "super_admin",
+    action: "tenant_deleted",
+    entity: "tenant",
+    entityId: tenantId,
+    metadata: { academyName: tenant?.academy_name },
+  });
+
   return { success: true };
 }

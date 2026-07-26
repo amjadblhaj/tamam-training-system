@@ -14,7 +14,9 @@ export function MetricCard({ label, value, icon: Icon, accent = "green" }: Metri
         <p className="text-sm text-brand-text-2">{label}</p>
         <div
           className={`rounded-lg p-2 ${
-            accent === "green" ? "bg-brand-green-light text-brand-green" : "bg-brand-orange-light text-brand-orange"
+            accent === "green"
+              ? "bg-brand-green-light text-brand-green"
+              : "bg-brand-orange-light text-brand-orange"
           }`}
         >
           <Icon size={18} />

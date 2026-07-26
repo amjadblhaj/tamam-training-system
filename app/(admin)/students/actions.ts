@@ -4,7 +4,11 @@ import { getSupabaseAdmin } from "@/lib/supabase/server";
 import { getSession } from "@/lib/auth/get-session";
 import { assertTenantCanWrite } from "@/lib/tenant/resolve-status";
 import { generatePlaceholderPasswordHash } from "@/lib/auth/generate-placeholder-password";
+import { revokeAllSessionsForSubject } from "@/lib/auth/session-store";
 import { createStudentSchema, type CreateStudentInput } from "@/lib/validations/student";
+import { STUDENTS_PAGE_SIZE } from "@/lib/constants";
+import { relationValue } from "@/lib/supabase/relation";
+import { recordAuditLog } from "@/lib/audit";
 import type {
   StudentRow,
   StudentDetail,
@@ -15,24 +19,24 @@ import type {
   ActionResult,
 } from "@/types";
 
-const PAGE_SIZE = 20;
-
 function sanitizeSearchTerm(input: string): string {
   return input.replace(/[,()%]/g, "").trim();
 }
 
 export async function getStudents(params: GetStudentsParams): Promise<GetStudentsResult> {
   const session = await getSession();
-  if (!session) return { students: [], total: 0, page: 1, pageSize: PAGE_SIZE };
+  if (!session) return { students: [], total: 0, page: 1, pageSize: STUDENTS_PAGE_SIZE };
 
   const db = getSupabaseAdmin();
   const page = params.page && params.page > 0 ? params.page : 1;
-  const from = (page - 1) * PAGE_SIZE;
-  const to = from + PAGE_SIZE - 1;
+  const from = (page - 1) * STUDENTS_PAGE_SIZE;
+  const to = from + STUDENTS_PAGE_SIZE - 1;
 
   let query = db
     .from("students")
-    .select("id, full_name, phone, branch_id, points, active, joined_at, branches(name_ar)", { count: "exact" })
+    .select("id, full_name, phone, branch_id, points, active, joined_at, branches(name_ar)", {
+      count: "exact",
+    })
     .eq("tenant_id", session.tenantId)
     .eq("active", true)
     .order("created_at", { ascending: false })
@@ -50,13 +54,13 @@ export async function getStudents(params: GetStudentsParams): Promise<GetStudent
     full_name: s.full_name,
     phone: s.phone,
     branch_id: s.branch_id,
-    branch_name_ar: (s.branches as unknown as { name_ar: string } | null)?.name_ar ?? "",
+    branch_name_ar: relationValue<string>(s.branches, "name_ar") ?? "",
     points: s.points,
     active: s.active,
     joined_at: s.joined_at,
   }));
 
-  return { students, total: count ?? 0, page, pageSize: PAGE_SIZE };
+  return { students, total: count ?? 0, page, pageSize: STUDENTS_PAGE_SIZE };
 }
 
 export async function getStudentById(id: number): Promise<StudentDetail | null> {
@@ -78,7 +82,7 @@ export async function getStudentById(id: number): Promise<StudentDetail | null> 
     full_name: data.full_name,
     phone: data.phone,
     branch_id: data.branch_id,
-    branch_name_ar: (data.branches as unknown as { name_ar: string } | null)?.name_ar ?? "",
+    branch_name_ar: relationValue<string>(data.branches, "name_ar") ?? "",
     points: data.points,
     active: data.active,
     joined_at: data.joined_at,
@@ -115,7 +119,7 @@ export async function getStudentRedemptions(id: number): Promise<RedemptionEntry
   return (data ?? []).map((r) => ({
     id: r.id,
     reward_id: r.reward_id,
-    reward_name_ar: (r.rewards as unknown as { name_ar: string } | null)?.name_ar ?? "",
+    reward_name_ar: relationValue<string>(r.rewards, "name_ar") ?? "",
     status: r.status,
     redeemed_at: r.redeemed_at,
   }));
@@ -212,5 +216,16 @@ export async function deactivateStudent(id: number): Promise<ActionResult> {
   if (error) {
     return { success: false, error: "حدث خطأ ما" };
   }
+
+  await revokeAllSessionsForSubject("student", String(id));
+  await recordAuditLog({
+    tenantId: session.tenantId,
+    actor: session.name,
+    actorRole: session.role,
+    action: "student_deactivated",
+    entity: "student",
+    entityId: String(id),
+  });
+
   return { success: true };
 }

@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { X } from "lucide-react";
 import { deleteBranch } from "@/app/(admin)/branches/actions";
 import { useToast } from "@/components/providers/toast-provider";
+import { SubmitButton } from "@/components/ui/SubmitButton";
+import { Modal } from "@/components/ui/Modal";
 import type { BranchWithStats } from "@/types";
 
 const inputClass =
@@ -36,37 +37,25 @@ export function DeleteBranchModal({ branch, onClose }: { branch: BranchWithStats
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-md rounded-2xl bg-brand-surface p-6 shadow-xl">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-brand-text">حذف الفرع</h2>
-          <button onClick={onClose} className="text-brand-text-2 transition-colors hover:text-brand-text">
-            <X size={20} />
-          </button>
+    <Modal title="حذف الفرع" onClose={onClose}>
+      <div className="space-y-4">
+        <p className="text-sm text-brand-orange">
+          هل أنت متأكد من حذف فرع &quot;{branch.name_ar}&quot;؟ هذا الإجراء نهائي ولا يمكن التراجع عنه.
+        </p>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-brand-text">كلمة مرور حسابك للتأكيد</label>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className={inputClass}
+          />
         </div>
-        <div className="space-y-4">
-          <p className="text-sm text-brand-orange">
-            هل أنت متأكد من حذف فرع &quot;{branch.name_ar}&quot;؟ هذا الإجراء نهائي ولا يمكن التراجع عنه.
-          </p>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-brand-text">كلمة مرور حسابك للتأكيد</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className={inputClass}
-            />
-          </div>
-          {serverError && <p className="text-sm text-brand-orange">{serverError}</p>}
-          <button
-            onClick={handleConfirm}
-            disabled={loading}
-            className="w-full rounded-lg bg-brand-orange py-2.5 font-semibold text-white transition-colors hover:opacity-90 disabled:opacity-60"
-          >
-            {loading ? "جاري الحذف..." : "تأكيد الحذف"}
-          </button>
-        </div>
+        {serverError && <p className="text-sm text-brand-orange">{serverError}</p>}
+        <SubmitButton variant="danger" onClick={handleConfirm} disabled={loading}>
+          {loading ? "جاري الحذف..." : "تأكيد الحذف"}
+        </SubmitButton>
       </div>
-    </div>
+    </Modal>
   );
 }

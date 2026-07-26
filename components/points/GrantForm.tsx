@@ -16,10 +16,9 @@ import { searchStudentsForGrant, grantPoints } from "@/app/(admin)/grant/actions
 import { useToast } from "@/components/providers/toast-provider";
 import { useReadOnly } from "@/hooks/useReadOnly";
 import { ReadOnlyPlaceholder } from "@/components/shared/ReadOnlyPlaceholder";
+import { Input, INPUT_CLASS } from "@/components/ui/Input";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 import type { StudentSearchResult } from "@/types";
-
-const inputClass =
-  "w-full rounded-lg border border-brand-border px-3 py-2 text-brand-text focus:border-brand-green focus:outline-none";
 
 export function GrantForm() {
   const toast = useToast();
@@ -87,7 +86,7 @@ export function GrantForm() {
           <label className="mb-1 block text-sm font-medium text-brand-text">الطالب</label>
           <div className="relative">
             <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-text-3" />
-            <input
+            <Input
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
@@ -96,7 +95,7 @@ export function GrantForm() {
               }}
               onFocus={() => setDropdownOpen(true)}
               placeholder="ابحث بالاسم أو رقم الهاتف"
-              className={`${inputClass} pr-9`}
+              className="pr-9"
             />
           </div>
           {dropdownOpen && isSearching && (
@@ -144,7 +143,7 @@ export function GrantForm() {
             control={control}
             name="reason"
             render={({ field }) => (
-              <select {...field} className={inputClass}>
+              <select {...field} className={INPUT_CLASS}>
                 {GRANT_REASONS.map((r) => (
                   <option key={r.value} value={r.value}>
                     {r.label}
@@ -158,24 +157,22 @@ export function GrantForm() {
         {reason === "custom" && (
           <div>
             <label className="mb-1 block text-sm font-medium text-brand-text">وصف السبب</label>
-            <input {...register("customReason")} className={inputClass} />
-            {errors.customReason && <p className="mt-1 text-xs text-brand-orange">{errors.customReason.message}</p>}
+            <Input {...register("customReason")} />
+            {errors.customReason && (
+              <p className="mt-1 text-xs text-brand-orange">{errors.customReason.message}</p>
+            )}
           </div>
         )}
 
         <div>
           <label className="mb-1 block text-sm font-medium text-brand-text">النقاط</label>
-          <input {...register("points")} type="number" min={1} max={9999} className={inputClass} />
+          <Input {...register("points")} type="number" min={1} max={9999} />
           {errors.points && <p className="mt-1 text-xs text-brand-orange">{errors.points.message}</p>}
         </div>
 
-        <button
-          type="submit"
-          disabled={isSubmitting || !selectedStudent}
-          className="w-full rounded-lg bg-brand-green py-2.5 font-semibold text-white transition-colors hover:bg-brand-green-dark disabled:opacity-60"
-        >
+        <SubmitButton disabled={isSubmitting || !selectedStudent}>
           {isSubmitting ? "جاري المنح..." : "منح النقاط"}
-        </button>
+        </SubmitButton>
       </form>
     </div>
   );

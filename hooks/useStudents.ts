@@ -1,10 +1,10 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { getStudents } from "@/app/(admin)/students/actions";
-import type { GetStudentsParams } from "@/types";
+import type { GetStudentsParams, GetStudentsResult } from "@/types";
 
-export function useStudents(params: GetStudentsParams) {
+export function useStudents(params: GetStudentsParams): UseQueryResult<GetStudentsResult> {
   return useQuery({
     queryKey: ["students", params],
     queryFn: () => getStudents(params),

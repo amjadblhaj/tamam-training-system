@@ -1,6 +1,8 @@
+import Image from "next/image";
 import { getSupabaseAdmin } from "@/lib/supabase/server";
 import { InvalidLinkCard } from "@/components/shared/InvalidLinkCard";
 import { LeaderboardList } from "@/components/leaderboard/LeaderboardList";
+import { relationValue } from "@/lib/supabase/relation";
 import type { LeaderboardEntry } from "@/types";
 
 export default async function PublicBranchLeaderboardPage({ params }: { params: { token: string } }) {
@@ -26,12 +28,19 @@ export default async function PublicBranchLeaderboardPage({ params }: { params: 
     .limit(10);
 
   const entries: LeaderboardEntry[] = data ?? [];
-  const academyName = (branch.tenants as unknown as { academy_name: string } | null)?.academy_name ?? "";
+  const academyName = relationValue<string>(branch.tenants, "academy_name") ?? "";
 
   return (
     <main className="min-h-screen bg-brand-dark px-4 py-8 text-brand-surface">
       <div className="mx-auto max-w-md">
         <div className="mb-6 text-center">
+          <Image
+            src="/logo-mark.png"
+            alt="تمام"
+            width={90}
+            height={33}
+            className="mx-auto mb-3 h-auto w-[90px]"
+          />
           <h1 className="text-xl font-bold text-brand-green">لوحة متصدري {branch.name_ar}</h1>
           <p className="mt-1 text-sm text-brand-surface-2">{academyName}</p>
         </div>

@@ -15,7 +15,12 @@ export default async function SuperAdminDashboardPage() {
         <MetricCard label="إجمالي العملاء" value={stats.totalTenants} icon={Building2} />
         <MetricCard label="العملاء النشطون" value={stats.activeTenants} icon={CheckCircle2} />
         <MetricCard label="فترة تجريبية" value={stats.trialTenants} icon={Clock} accent="orange" />
-        <MetricCard label="يحتاج إجراء" value={stats.suspendedOrExpiredTenants} icon={AlertTriangle} accent="orange" />
+        <MetricCard
+          label="يحتاج إجراء"
+          value={stats.suspendedOrExpiredTenants}
+          icon={AlertTriangle}
+          accent="orange"
+        />
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-brand-border bg-brand-surface">

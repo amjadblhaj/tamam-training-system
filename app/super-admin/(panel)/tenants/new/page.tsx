@@ -8,6 +8,7 @@ import { z } from "zod";
 import { Copy } from "lucide-react";
 import { createTenant } from "@/lib/actions/super-admin-tenants";
 import { useToast } from "@/components/providers/toast-provider";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 import type { CreateTenantInput } from "@/types";
 
 const schema = z.object({
@@ -25,7 +26,7 @@ type FormInput = z.input<typeof schema>;
 type FormOutput = z.output<typeof schema>;
 
 const inputClass =
-  "w-full rounded-lg border border-brand-border px-3 py-2 text-brand-text focus:border-brand-orange focus:outline-none";
+  "w-full rounded-lg border border-brand-border px-3 py-2 text-brand-text focus:border-brand-orange focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/40";
 
 function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
   return (
@@ -40,9 +41,11 @@ function Field({ label, error, children }: { label: string; error?: string; chil
 export default function NewTenantPage() {
   const router = useRouter();
   const toast = useToast();
-  const [credentials, setCredentials] = useState<{ username: string; password: string; academyName: string } | null>(
-    null
-  );
+  const [credentials, setCredentials] = useState<{
+    username: string;
+    password: string;
+    academyName: string;
+  } | null>(null);
   const {
     register,
     handleSubmit,
@@ -64,8 +67,10 @@ export default function NewTenantPage() {
 
   if (credentials) {
     return (
-      <div className="max-w-lg rounded-xl border border-brand-border bg-brand-surface p-6">
-        <h1 className="mb-4 text-xl font-bold text-brand-text">تم إنشاء الحساب — أرسل بيانات الدخول للعميل</h1>
+      <div className="max-w-lg rounded-xl border border-brand-border bg-brand-surface p-5">
+        <h1 className="mb-4 text-xl font-bold text-brand-text">
+          تم إنشاء الحساب — أرسل بيانات الدخول للعميل
+        </h1>
         <div className="space-y-3 rounded-lg bg-brand-surface-3 p-4 text-sm">
           <p>
             <span className="text-brand-text-2">الأكاديمية:</span>{" "}
@@ -94,7 +99,7 @@ export default function NewTenantPage() {
           </button>
           <button
             onClick={() => router.push("/super-admin/tenants")}
-            className="rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-white transition-colors hover:opacity-90"
+            className="rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-brand-dark transition-colors hover:opacity-90"
           >
             الذهاب لقائمة العملاء
           </button>
@@ -106,7 +111,10 @@ export default function NewTenantPage() {
   return (
     <div className="max-w-lg">
       <h1 className="mb-6 text-2xl font-bold text-brand-text">إضافة عميل جديد</h1>
-      <form onSubmit={onSubmit} className="space-y-4 rounded-xl border border-brand-border bg-brand-surface p-6">
+      <form
+        onSubmit={onSubmit}
+        className="space-y-4 rounded-xl border border-brand-border bg-brand-surface p-5"
+      >
         <Field label="اسم الأكاديمية (عربي)" error={errors.academyName?.message}>
           <input {...register("academyName")} className={inputClass} />
         </Field>
@@ -135,13 +143,9 @@ export default function NewTenantPage() {
         <Field label="كلمة مرور المدير" error={errors.adminPassword?.message}>
           <input {...register("adminPassword")} type="password" className={inputClass} />
         </Field>
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="w-full rounded-lg bg-brand-orange py-2.5 font-semibold text-white transition-colors hover:opacity-90 disabled:opacity-60"
-        >
+        <SubmitButton variant="danger" disabled={isSubmitting}>
           {isSubmitting ? "جاري الإنشاء..." : "إنشاء الحساب"}
-        </button>
+        </SubmitButton>
       </form>
     </div>
   );

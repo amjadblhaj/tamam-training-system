@@ -21,7 +21,10 @@ export function TrialBanner() {
       }`}
     >
       <span className={isUrgent ? "text-[#92400E]" : "text-[#1E40AF]"}>
-        {isUrgent ? "⏰" : "ℹ️"} تجربتك المجانية تنتهي بعد <strong>{daysLeft} {daysLeft === 1 ? "يوم" : "أيام"}</strong>
+        {isUrgent ? "⏰" : "ℹ️"} تجربتك المجانية تنتهي بعد{" "}
+        <strong>
+          {daysLeft} {daysLeft === 1 ? "يوم" : "أيام"}
+        </strong>
       </span>
       <a
         href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("أريد الاشتراك في مزايا")}`}

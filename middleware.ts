@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SESSION_COOKIE, verifySessionToken, type SessionRole } from "@/lib/auth/session";
 import { SUPER_ADMIN_SESSION_COOKIE, verifySuperAdminSessionToken } from "@/lib/auth/super-admin-session";
+import { isSessionValid } from "@/lib/auth/session-store";
 
 const ADMIN_ONLY = ["/rewards", "/settings"];
 const STAFF_AND_ADMIN = [
@@ -16,15 +17,15 @@ const STAFF_AND_ADMIN = [
 const STUDENT_ONLY = ["/portal"];
 const SUPER_ADMIN_PREFIX = "/super-admin";
 
-function matchesPrefix(pathname: string, prefixes: string[]) {
+function matchesPrefix(pathname: string, prefixes: string[]): boolean {
   return prefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
-function homeFor(role: SessionRole) {
+function homeFor(role: SessionRole): string {
   return role === "student" ? "/portal" : "/dashboard";
 }
 
-export async function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
 
   // Super Admin has its own completely separate session/cookie — never mixed
@@ -34,7 +35,15 @@ export async function middleware(request: NextRequest) {
     const saSession = saToken ? await verifySuperAdminSessionToken(saToken) : null;
 
     if (pathname === "/super-admin/login") {
-      if (saSession) {
+      // Also check revocation here specifically: bouncing away from the
+      // login page for a JWT that's cryptographically valid but revoked
+      // server-side (e.g. a replayed post-logout cookie) would otherwise
+      // send the user to /super-admin/dashboard, which itself bounces them
+      // straight back via getSuperAdminSession()'s revocation check —
+      // an infinite redirect loop. Route *protection* below doesn't need
+      // this extra check: worst case there it's one clean extra hop, not a
+      // loop, since this branch stops the loop at its only other end.
+      if (saSession && (await isSessionValid(saSession.sessionId))) {
         return NextResponse.redirect(new URL("/super-admin/dashboard", request.url));
       }
       return NextResponse.next();
@@ -50,14 +59,16 @@ export async function middleware(request: NextRequest) {
   const session = token ? await verifySessionToken(token) : null;
 
   if (pathname === "/login") {
-    if (session) {
+    // See the matching comment in the Super Admin branch above.
+    if (session && (await isSessionValid(session.sessionId))) {
       return NextResponse.redirect(new URL(homeFor(session.role), request.url));
     }
     return NextResponse.next();
   }
 
   if (pathname === "/") {
-    return NextResponse.redirect(new URL(session ? homeFor(session.role) : "/login", request.url));
+    const validSession = session && (await isSessionValid(session.sessionId)) ? session : null;
+    return NextResponse.redirect(new URL(validSession ? homeFor(validSession.role) : "/login", request.url));
   }
 
   const needsAdmin = matchesPrefix(pathname, ADMIN_ONLY);

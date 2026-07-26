@@ -1,15 +1,16 @@
 "use server";
 
-import bcrypt from "bcryptjs";
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getSupabaseAdmin } from "@/lib/supabase/server";
-import {
-  createSuperAdminSessionToken,
-  SUPER_ADMIN_SESSION_COOKIE,
-  SUPER_ADMIN_SESSION_MAX_AGE_SECONDS,
-} from "@/lib/auth/super-admin-session";
-import { checkLoginRateLimit } from "@/lib/auth/rate-limit";
+import { SUPER_ADMIN_SESSION_COOKIE } from "@/lib/auth/super-admin-session";
+import { startSuperAdminSession } from "@/lib/auth/start-session";
+import { getSuperAdminSession } from "@/lib/auth/get-super-admin-session";
+import { revokeSession } from "@/lib/auth/session-store";
+import { checkLoginRateLimit, getClientIp } from "@/lib/auth/rate-limit";
+import { comparePassword } from "@/lib/auth/password";
+import { recordAuditLog } from "@/lib/audit";
+import { RATE_LIMIT_SCOPE } from "@/lib/constants";
 import {
   superAdminLoginSchema,
   type SuperAdminLoginInput,
@@ -18,12 +19,8 @@ import {
 
 const GENERIC_ERROR = "اسم المستخدم أو كلمة المرور غير صحيحة";
 
-function clientIp() {
-  return headers().get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-}
-
 export async function superAdminLogin(input: SuperAdminLoginInput): Promise<SuperAdminLoginResult> {
-  if (!checkLoginRateLimit(`super-admin:${clientIp()}`)) {
+  if (!(await checkLoginRateLimit(`${RATE_LIMIT_SCOPE.SUPER_ADMIN_LOGIN}:${getClientIp()}`))) {
     return { success: false, error: "محاولات تسجيل دخول كثيرة جدًا. حاول مرة أخرى بعد دقيقة." };
   }
 
@@ -40,27 +37,45 @@ export async function superAdminLogin(input: SuperAdminLoginInput): Promise<Supe
     .maybeSingle();
 
   if (!admin) {
+    await recordAuditLog({
+      tenantId: null,
+      actor: username,
+      actorRole: "super_admin",
+      action: "login_failed",
+      metadata: { reason: "not_found" },
+    });
     return { success: false, error: GENERIC_ERROR };
   }
 
-  const valid = await bcrypt.compare(password, admin.password);
+  const valid = await comparePassword(password, admin.password);
   if (!valid) {
+    await recordAuditLog({
+      tenantId: null,
+      actor: username,
+      actorRole: "super_admin",
+      action: "login_failed",
+      metadata: { reason: "wrong_password" },
+    });
     return { success: false, error: GENERIC_ERROR };
   }
 
-  const token = await createSuperAdminSessionToken({ id: admin.id, username: admin.username });
-  cookies().set(SUPER_ADMIN_SESSION_COOKIE, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: SUPER_ADMIN_SESSION_MAX_AGE_SECONDS,
+  await startSuperAdminSession({ id: admin.id, username: admin.username });
+
+  await recordAuditLog({
+    tenantId: null,
+    actor: username,
+    actorRole: "super_admin",
+    action: "login_succeeded",
   });
 
   return { success: true, redirectTo: "/super-admin/dashboard" };
 }
 
 export async function superAdminLogout(): Promise<void> {
+  const session = await getSuperAdminSession();
+  if (session) {
+    await revokeSession(session.sessionId);
+  }
   cookies().delete(SUPER_ADMIN_SESSION_COOKIE);
   redirect("/super-admin/login");
 }

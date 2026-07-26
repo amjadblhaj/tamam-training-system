@@ -35,7 +35,7 @@ export function TenantsClient({ initialTenants }: { initialTenants: TenantRow[] 
         <h1 className="text-2xl font-bold text-brand-text">العملاء</h1>
         <Link
           href="/super-admin/tenants/new"
-          className="flex items-center gap-2 rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-white transition-colors hover:opacity-90"
+          className="flex items-center gap-2 rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-brand-dark transition-colors hover:opacity-90"
         >
           <Plus size={16} /> إضافة عميل
         </Link>

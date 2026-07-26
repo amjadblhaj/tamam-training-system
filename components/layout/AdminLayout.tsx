@@ -14,7 +14,12 @@ export async function AdminLayout({ children }: { children: React.ReactNode }) {
   const tenantStatus = await getTenantStatus();
 
   return (
-    <AdminShell role={session.role} name={session.name} logoutAction={logout} initialTenantStatus={tenantStatus}>
+    <AdminShell
+      role={session.role}
+      name={session.name}
+      logoutAction={logout}
+      initialTenantStatus={tenantStatus}
+    >
       {children}
     </AdminShell>
   );

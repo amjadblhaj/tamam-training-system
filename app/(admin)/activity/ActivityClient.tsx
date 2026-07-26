@@ -5,6 +5,7 @@ import * as XLSX from "xlsx";
 import { useQuery } from "@tanstack/react-query";
 import { ClipboardList, Download } from "lucide-react";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { SkeletonRows } from "@/components/shared/SkeletonRows";
 import { getActivityLog, getActivityLogForExport } from "./actions";
 import type { Branch } from "@/types";
 
@@ -17,7 +18,7 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 const inputClass =
-  "rounded-lg border border-brand-border px-3 py-2 text-sm text-brand-text focus:border-brand-green focus:outline-none";
+  "rounded-lg border border-brand-border px-3 py-2 text-sm text-brand-text focus:border-brand-green focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-green/40";
 
 export function ActivityClient({ branches, isAdmin }: { branches: Branch[]; isAdmin: boolean }) {
   const [branchId, setBranchId] = useState<number | null>(null);
@@ -138,9 +139,7 @@ export function ActivityClient({ branches, isAdmin }: { branches: Branch[]; isAd
       <div className="overflow-x-auto rounded-xl border border-brand-border bg-brand-surface">
         {isLoading ? (
           <div className="space-y-2 p-4">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="h-10 animate-pulse rounded bg-brand-surface-3" />
-            ))}
+            <SkeletonRows count={5} />
           </div>
         ) : data && data.rows.length > 0 ? (
           <table className="w-full text-sm">
@@ -162,10 +161,14 @@ export function ActivityClient({ branches, isAdmin }: { branches: Branch[]; isAd
                   <td className="px-4 py-3 text-brand-text-2">
                     {TYPE_LABELS[r.type] ?? r.type} — {r.action}
                   </td>
-                  <td className={`px-4 py-3 font-semibold ${r.points >= 0 ? "text-brand-green" : "text-brand-orange"}`}>
+                  <td
+                    className={`px-4 py-3 font-semibold ${r.points >= 0 ? "text-brand-green" : "text-brand-orange"}`}
+                  >
                     {r.points >= 0 ? `+${r.points}` : r.points}
                   </td>
-                  <td className="px-4 py-3 text-brand-text-2">{new Date(r.created_at).toLocaleString("ar")}</td>
+                  <td className="px-4 py-3 text-brand-text-2">
+                    {new Date(r.created_at).toLocaleString("ar")}
+                  </td>
                   <td className="px-4 py-3 text-brand-text-2">{r.granted_by}</td>
                 </tr>
               ))}

@@ -2,6 +2,7 @@
 
 import { getSupabaseAdmin } from "@/lib/supabase/server";
 import { getSession } from "@/lib/auth/get-session";
+import { relationValue } from "@/lib/supabase/relation";
 import type { DashboardMetrics, TopStudent, ActivityEntry } from "@/types";
 
 export async function getDashboardMetrics(branchId: number | null): Promise<DashboardMetrics> {
@@ -23,7 +24,10 @@ export async function getDashboardMetrics(branchId: number | null): Promise<Dash
   const { data: pointsRows } = await pointsQuery;
   const totalPointsGranted = (pointsRows ?? []).reduce((sum, r) => sum + r.points, 0);
 
-  let redemptionsQuery = db.from("redemptions").select("id, students!inner(branch_id)").eq("tenant_id", tenantId);
+  let redemptionsQuery = db
+    .from("redemptions")
+    .select("id, students!inner(branch_id)")
+    .eq("tenant_id", tenantId);
   if (branchId) redemptionsQuery = redemptionsQuery.eq("students.branch_id", branchId);
   const { data: redemptionRows } = await redemptionsQuery;
   const rewardsRedeemed = (redemptionRows ?? []).length;
@@ -63,7 +67,7 @@ export async function getTopStudents(branchId: number | null): Promise<TopStuden
     id: s.id,
     full_name: s.full_name,
     points: s.points,
-    branch_name_ar: (s.branches as unknown as { name_ar: string } | null)?.name_ar ?? "",
+    branch_name_ar: relationValue<string>(s.branches, "name_ar") ?? "",
   }));
 }
 
@@ -83,8 +87,8 @@ export async function getRecentActivity(branchId: number | null): Promise<Activi
 
   return (data ?? []).map((r) => ({
     id: r.id,
-    student_name: (r.students as unknown as { full_name: string } | null)?.full_name ?? "—",
-    branch_name_ar: (r.branches as unknown as { name_ar: string } | null)?.name_ar ?? "",
+    student_name: relationValue<string>(r.students, "full_name") ?? "—",
+    branch_name_ar: relationValue<string>(r.branches, "name_ar") ?? "",
     action: r.action,
     points: r.points,
     granted_by: r.granted_by,

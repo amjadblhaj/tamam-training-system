@@ -6,6 +6,8 @@ import { Search, Users as UsersIcon, Plus } from "lucide-react";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useStudents } from "@/hooks/useStudents";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { SkeletonRows } from "@/components/shared/SkeletonRows";
+import { Button } from "@/components/ui/Button";
 import { AddStudentModal } from "@/components/students/AddStudentModal";
 import { useReadOnly } from "@/hooks/useReadOnly";
 import type { Branch } from "@/types";
@@ -26,12 +28,9 @@ export function StudentsClient({ branches }: { branches: Branch[] }) {
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-brand-text">الطلاب</h1>
         {canEdit && (
-          <button
-            onClick={() => setModalOpen(true)}
-            className="flex items-center gap-2 rounded-lg bg-brand-green px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-green-dark"
-          >
+          <Button onClick={() => setModalOpen(true)}>
             <Plus size={16} /> إضافة طالب
-          </button>
+          </Button>
         )}
       </div>
 
@@ -68,9 +67,7 @@ export function StudentsClient({ branches }: { branches: Branch[] }) {
       <div className="overflow-x-auto rounded-xl border border-brand-border bg-brand-surface">
         {isLoading ? (
           <div className="space-y-2 p-4">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="h-10 animate-pulse rounded bg-brand-surface-3" />
-            ))}
+            <SkeletonRows count={5} />
           </div>
         ) : data && data.students.length > 0 ? (
           <table className="w-full text-sm">

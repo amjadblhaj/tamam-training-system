@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Plus, Trash2, Building2 } from "lucide-react";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { Button } from "@/components/ui/Button";
 import { useReadOnly } from "@/hooks/useReadOnly";
 import { getBranchesWithStats } from "./actions";
 import { AddBranchModal } from "@/components/branches/AddBranchModal";
@@ -38,14 +39,13 @@ export function BranchesClient({ initialData, role }: { initialData: BranchLimit
           </p>
         </div>
         {canManage && (
-          <button
+          <Button
             onClick={() => setAddOpen(true)}
             disabled={atLimit}
             title={atLimit ? "تم الوصول للحد الأقصى لعدد الفروع" : undefined}
-            className="flex items-center gap-2 rounded-lg bg-brand-green px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-green-dark disabled:opacity-50"
           >
             <Plus size={16} /> إضافة فرع
-          </button>
+          </Button>
         )}
       </div>
 
@@ -66,7 +66,10 @@ export function BranchesClient({ initialData, role }: { initialData: BranchLimit
                   <td className="px-4 py-3 text-brand-text-2">{b.student_count}</td>
                   {canManage && (
                     <td className="px-4 py-3">
-                      <button onClick={() => setDeleteTarget(b)} className="text-brand-orange hover:underline">
+                      <button
+                        onClick={() => setDeleteTarget(b)}
+                        className="text-brand-orange hover:underline"
+                      >
                         <Trash2 size={16} />
                       </button>
                     </td>

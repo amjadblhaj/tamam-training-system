@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PHONE_REGEX, PHONE_REGEX_MESSAGE } from "@/lib/constants";
 
 export const staffLoginSchema = z.object({
   username: z.string().min(1, "اسم المستخدم مطلوب"),
@@ -6,7 +7,7 @@ export const staffLoginSchema = z.object({
 });
 
 export const studentLoginSchema = z.object({
-  phone: z.string().regex(/^\d{10}$/, "رقم الهاتف يجب أن يتكون من 10 أرقام"),
+  phone: z.string().regex(PHONE_REGEX, PHONE_REGEX_MESSAGE),
 });
 
 export type StaffLoginInput = z.infer<typeof staffLoginSchema>;

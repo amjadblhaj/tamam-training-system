@@ -1,28 +1,15 @@
 "use server";
 
-import { cookies, headers } from "next/headers";
 import { getSupabaseAdmin } from "@/lib/supabase/server";
-import { createSessionToken, SESSION_COOKIE, SESSION_MAX_AGE_SECONDS } from "@/lib/auth/session";
+import { startSession } from "@/lib/auth/start-session";
 import { assertTenantCanWrite } from "@/lib/tenant/resolve-status";
-import { checkLoginRateLimit } from "@/lib/auth/rate-limit";
+import { checkLoginRateLimit, getClientIp } from "@/lib/auth/rate-limit";
 import { generatePlaceholderPasswordHash } from "@/lib/auth/generate-placeholder-password";
 import { registerStudentSchema, type RegisterStudentInput } from "@/lib/validations/register";
+import { RATE_LIMIT_SCOPE } from "@/lib/constants";
+import { relationValue } from "@/lib/supabase/relation";
 import type { LoginResult } from "@/lib/validations/auth";
 import type { BranchPublicInfo } from "@/types";
-
-function clientIp() {
-  return headers().get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-}
-
-function setSessionCookie(token: string) {
-  cookies().set(SESSION_COOKIE, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: SESSION_MAX_AGE_SECONDS,
-  });
-}
 
 export async function getBranchByToken(token: string): Promise<BranchPublicInfo | null> {
   const db = getSupabaseAdmin();
@@ -38,12 +25,12 @@ export async function getBranchByToken(token: string): Promise<BranchPublicInfo 
     id: branch.id,
     name_ar: branch.name_ar,
     tenantId: branch.tenant_id,
-    academyName: (branch.tenants as unknown as { academy_name: string } | null)?.academy_name ?? "",
+    academyName: relationValue<string>(branch.tenants, "academy_name") ?? "",
   };
 }
 
 export async function registerStudent(token: string, input: RegisterStudentInput): Promise<LoginResult> {
-  if (!checkLoginRateLimit(`register:${clientIp()}`)) {
+  if (!(await checkLoginRateLimit(`${RATE_LIMIT_SCOPE.REGISTER}:${getClientIp()}`))) {
     return { success: false, error: "محاولات كثيرة جدًا. حاول مرة أخرى بعد دقيقة." };
   }
 
@@ -103,14 +90,13 @@ export async function registerStudent(token: string, input: RegisterStudentInput
     return { success: false, error: "حدث خطأ أثناء التسجيل" };
   }
 
-  const sessionToken = await createSessionToken({
+  await startSession({
     id: String(student.id),
     role: "student",
     name: fullName,
     branchId: branch.id,
     tenantId: branch.tenant_id,
   });
-  setSessionCookie(sessionToken);
 
   return { success: true, redirectTo: "/portal" };
 }

@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Pencil, Trash2, Award } from "lucide-react";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { SkeletonRows } from "@/components/shared/SkeletonRows";
+import { Button } from "@/components/ui/Button";
 import { RewardModal } from "@/components/rewards/RewardModal";
 import { getRewards, toggleRewardActive, deleteReward } from "./actions";
 import { useToast } from "@/components/providers/toast-provider";
@@ -55,21 +57,16 @@ export function RewardsClient() {
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-brand-text">المكافآت</h1>
         {canEdit && (
-          <button
-            onClick={openAddModal}
-            className="flex items-center gap-2 rounded-lg bg-brand-green px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-green-dark"
-          >
+          <Button onClick={openAddModal}>
             <Plus size={16} /> إضافة مكافأة
-          </button>
+          </Button>
         )}
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-brand-border bg-brand-surface">
         {isLoading ? (
           <div className="space-y-2 p-4">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-10 animate-pulse rounded bg-brand-surface-3" />
-            ))}
+            <SkeletonRows count={3} />
           </div>
         ) : rewards && rewards.length > 0 ? (
           <table className="w-full text-sm">
@@ -94,7 +91,9 @@ export function RewardsClient() {
                       <button
                         onClick={() => handleToggle(r)}
                         className={`rounded-full px-3 py-1 text-xs font-medium ${
-                          r.active ? "bg-brand-green-light text-brand-green" : "bg-brand-surface-3 text-brand-text-3"
+                          r.active
+                            ? "bg-brand-green-light text-brand-green"
+                            : "bg-brand-surface-3 text-brand-text-3"
                         }`}
                       >
                         {r.active ? "مفعّلة" : "غير مفعّلة"}
@@ -102,7 +101,9 @@ export function RewardsClient() {
                     ) : (
                       <span
                         className={`rounded-full px-3 py-1 text-xs font-medium ${
-                          r.active ? "bg-brand-green-light text-brand-green" : "bg-brand-surface-3 text-brand-text-3"
+                          r.active
+                            ? "bg-brand-green-light text-brand-green"
+                            : "bg-brand-surface-3 text-brand-text-3"
                         }`}
                       >
                         {r.active ? "مفعّلة" : "غير مفعّلة"}

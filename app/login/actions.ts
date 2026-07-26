@@ -1,11 +1,16 @@
 "use server";
 
-import bcrypt from "bcryptjs";
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getSupabaseAdmin } from "@/lib/supabase/server";
-import { createSessionToken, SESSION_COOKIE, SESSION_MAX_AGE_SECONDS } from "@/lib/auth/session";
-import { checkLoginRateLimit } from "@/lib/auth/rate-limit";
+import { SESSION_COOKIE } from "@/lib/auth/session";
+import { startSession } from "@/lib/auth/start-session";
+import { getSession } from "@/lib/auth/get-session";
+import { revokeSession } from "@/lib/auth/session-store";
+import { checkLoginRateLimit, getClientIp } from "@/lib/auth/rate-limit";
+import { comparePassword } from "@/lib/auth/password";
+import { recordAuditLog } from "@/lib/audit";
+import { RATE_LIMIT_SCOPE } from "@/lib/constants";
 import {
   staffLoginSchema,
   studentLoginSchema,
@@ -18,22 +23,8 @@ const GENERIC_STAFF_ERROR = "اسم المستخدم أو كلمة المرور 
 const GENERIC_STUDENT_ERROR = "رقم الهاتف غير مسجل";
 const RATE_LIMIT_ERROR = "محاولات تسجيل دخول كثيرة جدًا. حاول مرة أخرى بعد دقيقة.";
 
-function clientIp() {
-  return headers().get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-}
-
-function setSessionCookie(token: string) {
-  cookies().set(SESSION_COOKIE, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: SESSION_MAX_AGE_SECONDS,
-  });
-}
-
 export async function loginStaff(input: StaffLoginInput): Promise<LoginResult> {
-  if (!checkLoginRateLimit(`staff:${clientIp()}`)) {
+  if (!(await checkLoginRateLimit(`${RATE_LIMIT_SCOPE.STAFF_LOGIN}:${getClientIp()}`))) {
     return { success: false, error: RATE_LIMIT_ERROR };
   }
 
@@ -50,28 +41,48 @@ export async function loginStaff(input: StaffLoginInput): Promise<LoginResult> {
     .maybeSingle();
 
   if (!staff || !staff.active) {
+    await recordAuditLog({
+      tenantId: staff?.tenant_id ?? null,
+      actor: username,
+      actorRole: "staff",
+      action: "login_failed",
+      metadata: { reason: !staff ? "not_found" : "inactive" },
+    });
     return { success: false, error: GENERIC_STAFF_ERROR };
   }
 
-  const valid = await bcrypt.compare(password, staff.password);
+  const valid = await comparePassword(password, staff.password);
   if (!valid) {
+    await recordAuditLog({
+      tenantId: staff.tenant_id,
+      actor: username,
+      actorRole: staff.role,
+      action: "login_failed",
+      metadata: { reason: "wrong_password" },
+    });
     return { success: false, error: GENERIC_STAFF_ERROR };
   }
 
-  const token = await createSessionToken({
+  await startSession({
     id: staff.id,
     role: staff.role === "admin" ? "admin" : "staff",
     name: staff.username,
     branchId: staff.branch_id,
     tenantId: staff.tenant_id,
   });
-  setSessionCookie(token);
+
+  await recordAuditLog({
+    tenantId: staff.tenant_id,
+    actor: username,
+    actorRole: staff.role,
+    action: "login_succeeded",
+  });
 
   return { success: true, redirectTo: "/dashboard" };
 }
 
 export async function loginStudent(input: StudentLoginInput): Promise<LoginResult> {
-  if (!checkLoginRateLimit(`student:${clientIp()}`)) {
+  if (!(await checkLoginRateLimit(`${RATE_LIMIT_SCOPE.STUDENT_LOGIN}:${getClientIp()}`))) {
     return { success: false, error: RATE_LIMIT_ERROR };
   }
 
@@ -91,22 +102,41 @@ export async function loginStudent(input: StudentLoginInput): Promise<LoginResul
     .maybeSingle();
 
   if (!student || !student.active) {
+    await recordAuditLog({
+      tenantId: student?.tenant_id ?? null,
+      actor: phone,
+      actorRole: "student",
+      action: "login_failed",
+      metadata: { reason: !student ? "not_found" : "inactive" },
+    });
     return { success: false, error: GENERIC_STUDENT_ERROR };
   }
 
-  const token = await createSessionToken({
+  await startSession({
     id: String(student.id),
     role: "student",
     name: student.full_name,
     branchId: student.branch_id,
     tenantId: student.tenant_id,
   });
-  setSessionCookie(token);
+
+  await recordAuditLog({
+    tenantId: student.tenant_id,
+    actor: student.full_name,
+    actorRole: "student",
+    action: "login_succeeded",
+    entity: "student",
+    entityId: String(student.id),
+  });
 
   return { success: true, redirectTo: "/portal" };
 }
 
 export async function logout(): Promise<void> {
+  const session = await getSession();
+  if (session) {
+    await revokeSession(session.sessionId);
+  }
   cookies().delete(SESSION_COOKIE);
   redirect("/login");
 }

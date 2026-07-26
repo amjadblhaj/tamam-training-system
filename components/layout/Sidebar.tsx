@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
@@ -54,8 +55,8 @@ export function Sidebar({ role, open, onNavigate }: SidebarProps) {
       }`}
     >
       <div className="mb-8 px-2">
-        <h1 className="text-2xl font-bold text-brand-green">تمام</h1>
-        <p className="text-xs text-brand-surface-2">أكاديمية قرار للتدريب والتطوير</p>
+        <Image src="/logo-full.png" alt="تمام" width={140} height={70} className="h-auto w-[140px]" priority />
+        <p className="mt-1 text-xs text-brand-surface-2">أكاديمية قرار للتدريب والتطوير</p>
       </div>
       <ul className="flex flex-1 flex-col gap-1">
         {items.map((item) => {
@@ -67,9 +68,7 @@ export function Sidebar({ role, open, onNavigate }: SidebarProps) {
                 href={item.href}
                 onClick={onNavigate}
                 className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                  isActive
-                    ? "bg-brand-green text-brand-dark"
-                    : "text-brand-surface-2 hover:bg-brand-dark-2"
+                  isActive ? "bg-brand-green text-brand-dark" : "text-brand-surface-2 hover:bg-brand-dark-2"
                 }`}
               >
                 <Icon size={18} />

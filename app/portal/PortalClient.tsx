@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { Trophy } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -8,6 +9,7 @@ import { getPortalBalance, getPortalRewards, getPortalTransactions, redeemReward
 import { logout } from "@/app/login/actions";
 import { useToast } from "@/components/providers/toast-provider";
 import { useReadOnly } from "@/hooks/useReadOnly";
+import { ConfettiBurst } from "@/components/portal/ConfettiBurst";
 import type { PortalReward, PortalTransaction, TenantStatusInfo } from "@/types";
 
 interface PortalClientProps {
@@ -33,6 +35,7 @@ export function PortalClient({
     seeded.current = true;
   }
   const { canEdit } = useReadOnly();
+  const [celebrating, setCelebrating] = useState(false);
 
   const { data: balance = initialBalance } = useQuery({
     queryKey: ["portal-balance"],
@@ -61,6 +64,7 @@ export function PortalClient({
       }
       const reward = rewards.find((r) => r.id === rewardId);
       toast.success(`تم استبدال "${reward?.name_ar ?? ""}" بنجاح. رصيدك الجديد: ${result.newBalance}`);
+      setCelebrating(true);
       queryClient.invalidateQueries({ queryKey: ["portal-balance"] });
       queryClient.invalidateQueries({ queryKey: ["portal-transactions"] });
     },
@@ -72,15 +76,17 @@ export function PortalClient({
   }
 
   const nextReward = rewards.find((r) => r.points_required > balance);
-  const progressPercent = nextReward ? Math.min(100, Math.round((balance / nextReward.points_required) * 100)) : 100;
+  const progressPercent = nextReward
+    ? Math.min(100, Math.round((balance / nextReward.points_required) * 100))
+    : 100;
 
   return (
     <main className="min-h-screen bg-brand-dark px-4 py-8 text-brand-surface">
       <div className="mx-auto max-w-md">
         <div className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-brand-green">تمام</h1>
-            <p className="text-sm text-brand-surface-2">مرحبًا، {studentName}</p>
+            <Image src="/logo-mark.png" alt="تمام" width={90} height={33} className="h-auto w-[90px]" priority />
+            <p className="mt-1 text-sm text-brand-surface-2">مرحبًا، {studentName}</p>
           </div>
           <div className="flex items-center gap-3">
             <Link href="/portal/leaderboard" className="flex items-center gap-1 text-sm text-brand-orange">
@@ -95,15 +101,23 @@ export function PortalClient({
           </div>
         </div>
 
-        <div className="mb-6 rounded-2xl bg-brand-dark-2 p-6 text-center">
+        <div className="relative mb-6 rounded-2xl bg-brand-dark-2 p-6 text-center">
           <p className="mb-2 text-sm text-brand-surface-2">رصيدك الحالي</p>
-          <p className="text-5xl font-extrabold text-brand-orange">{balance}</p>
+          <p
+            className={`text-5xl font-extrabold text-brand-orange ${celebrating ? "animate-in zoom-in-125 duration-500" : ""}`}
+          >
+            {balance}
+          </p>
           <p className="mt-1 text-sm text-brand-surface-2">نقطة</p>
+          {celebrating && <ConfettiBurst onDone={() => setCelebrating(false)} />}
         </div>
 
         <div className="mb-8">
           <div className="mb-2 h-3 w-full overflow-hidden rounded-full bg-brand-dark-2">
-            <div className="h-full rounded-full bg-brand-green transition-all" style={{ width: `${progressPercent}%` }} />
+            <div
+              className="h-full rounded-full bg-brand-green transition-all"
+              style={{ width: `${progressPercent}%` }}
+            />
           </div>
           <p className="text-center text-sm text-brand-surface-2">
             {nextReward
@@ -156,9 +170,16 @@ export function PortalClient({
           {transactions.length > 0 ? (
             <ul className="space-y-2">
               {transactions.map((t) => (
-                <li key={t.id} className="flex items-center justify-between rounded-lg bg-brand-dark-2 px-3 py-2 text-sm">
+                <li
+                  key={t.id}
+                  className="flex items-center justify-between rounded-lg bg-brand-dark-2 px-3 py-2 text-sm"
+                >
                   <span className="text-brand-surface-2">{t.action}</span>
-                  <span className={t.points >= 0 ? "font-semibold text-brand-green" : "font-semibold text-brand-orange"}>
+                  <span
+                    className={
+                      t.points >= 0 ? "font-semibold text-brand-green" : "font-semibold text-brand-orange"
+                    }
+                  >
                     {t.points >= 0 ? `+${t.points}` : t.points}
                   </span>
                 </li>

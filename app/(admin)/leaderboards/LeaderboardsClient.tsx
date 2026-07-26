@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Copy, Check, Trophy } from "lucide-react";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { QrCodeCell } from "@/components/shared/QrCodeCell";
+import { useOrigin } from "@/hooks/useOrigin";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { getBranchLeaderboardLinks, getOverallLeaderboardLink } from "./actions";
 import type { BranchLeaderboardLink, OverallLeaderboardLink } from "@/types";
 
@@ -15,15 +16,8 @@ export function LeaderboardsClient({
   initialBranchLinks: BranchLeaderboardLink[];
   initialOverallLink: OverallLeaderboardLink | null;
 }) {
-  const [copiedKey, setCopiedKey] = useState<string | null>(null);
-  // Computed only after mount so the server-rendered markup (which has no
-  // window.location) matches the client's first render — avoids a hydration
-  // mismatch.
-  const [origin, setOrigin] = useState("");
-
-  useEffect(() => {
-    setOrigin(window.location.origin);
-  }, []);
+  const origin = useOrigin();
+  const { copiedKey, copy } = useCopyToClipboard();
 
   const { data: branchLinks = initialBranchLinks } = useQuery({
     queryKey: ["leaderboard-links-branches"],
@@ -37,13 +31,8 @@ export function LeaderboardsClient({
     initialData: initialOverallLink,
   });
 
-  async function handleCopy(key: string, url: string) {
-    await navigator.clipboard.writeText(url);
-    setCopiedKey(key);
-    setTimeout(() => setCopiedKey(null), 2000);
-  }
-
-  const overallUrl = overallLink && origin ? `${origin}/leaderboard/overall/${overallLink.leaderboard_token}` : "";
+  const overallUrl =
+    overallLink && origin ? `${origin}/leaderboard/overall/${overallLink.leaderboard_token}` : "";
   const isEmpty = !overallLink && branchLinks.length === 0;
 
   return (
@@ -77,7 +66,7 @@ export function LeaderboardsClient({
                   </td>
                   <td className="px-4 py-3">
                     <button
-                      onClick={() => handleCopy("overall", overallUrl)}
+                      onClick={() => copy("overall", overallUrl)}
                       className="flex items-center gap-1.5 text-brand-green hover:underline"
                     >
                       {copiedKey === "overall" ? <Check size={16} /> : <Copy size={16} />}
@@ -100,7 +89,7 @@ export function LeaderboardsClient({
                     </td>
                     <td className="px-4 py-3">
                       <button
-                        onClick={() => handleCopy(key, url)}
+                        onClick={() => copy(key, url)}
                         className="flex items-center gap-1.5 text-brand-green hover:underline"
                       >
                         {copiedKey === key ? <Check size={16} /> : <Copy size={16} />}

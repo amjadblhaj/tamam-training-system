@@ -1,23 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Copy, Check, Link2 } from "lucide-react";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { QrCodeCell } from "@/components/shared/QrCodeCell";
+import { useOrigin } from "@/hooks/useOrigin";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { getBranchRegistrationLinks } from "./actions";
 import type { BranchRegistrationLink } from "@/types";
 
 export function RegistrationLinksClient({ initialData }: { initialData: BranchRegistrationLink[] }) {
-  const [copiedId, setCopiedId] = useState<number | null>(null);
-  // Computed only after mount so the server-rendered markup (which has no
-  // window.location) matches the client's first render — avoids a hydration
-  // mismatch.
-  const [origin, setOrigin] = useState("");
-
-  useEffect(() => {
-    setOrigin(window.location.origin);
-  }, []);
+  const origin = useOrigin();
+  const { copiedKey, copy } = useCopyToClipboard();
 
   const { data } = useQuery({
     queryKey: ["registration-links"],
@@ -27,14 +21,7 @@ export function RegistrationLinksClient({ initialData }: { initialData: BranchRe
 
   const links = data ?? [];
 
-  async function handleCopy(link: BranchRegistrationLink) {
-    const url = `${window.location.origin}/register/${link.registration_token}`;
-    await navigator.clipboard.writeText(url);
-    setCopiedId(link.id);
-    setTimeout(() => setCopiedId(null), 2000);
-  }
-
-  function urlFor(link: BranchRegistrationLink) {
+  function urlFor(link: BranchRegistrationLink): string {
     return origin ? `${origin}/register/${link.registration_token}` : "";
   }
 
@@ -65,11 +52,11 @@ export function RegistrationLinksClient({ initialData }: { initialData: BranchRe
                   </td>
                   <td className="px-4 py-3">
                     <button
-                      onClick={() => handleCopy(l)}
+                      onClick={() => copy(String(l.id), urlFor(l))}
                       className="flex items-center gap-1.5 text-brand-green hover:underline"
                     >
-                      {copiedId === l.id ? <Check size={16} /> : <Copy size={16} />}
-                      {copiedId === l.id ? "تم النسخ" : "نسخ"}
+                      {copiedKey === String(l.id) ? <Check size={16} /> : <Copy size={16} />}
+                      {copiedKey === String(l.id) ? "تم النسخ" : "نسخ"}
                     </button>
                   </td>
                   <td className="px-4 py-3">

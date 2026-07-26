@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { superAdminLoginSchema, type SuperAdminLoginInput } from "@/lib/validations/super-admin";
 import { superAdminLogin } from "./actions";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 
 export default function SuperAdminLoginPage() {
   const router = useRouter();
@@ -42,7 +43,7 @@ export default function SuperAdminLoginPage() {
               {...register("username")}
               type="text"
               autoComplete="username"
-              className="w-full rounded-lg border border-brand-border px-3 py-2 text-brand-text focus:border-brand-orange focus:outline-none"
+              className="w-full rounded-lg border border-brand-border px-3 py-2 text-brand-text focus:border-brand-orange focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/40"
             />
             {errors.username && <p className="mt-1 text-xs text-brand-orange">{errors.username.message}</p>}
           </div>
@@ -52,18 +53,14 @@ export default function SuperAdminLoginPage() {
               {...register("password")}
               type="password"
               autoComplete="current-password"
-              className="w-full rounded-lg border border-brand-border px-3 py-2 text-brand-text focus:border-brand-orange focus:outline-none"
+              className="w-full rounded-lg border border-brand-border px-3 py-2 text-brand-text focus:border-brand-orange focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/40"
             />
             {errors.password && <p className="mt-1 text-xs text-brand-orange">{errors.password.message}</p>}
           </div>
           {serverError && <p className="text-sm text-brand-orange">{serverError}</p>}
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full rounded-lg bg-brand-orange py-2.5 font-semibold text-white transition-colors hover:opacity-90 disabled:opacity-60"
-          >
+          <SubmitButton variant="danger" disabled={isSubmitting}>
             {isSubmitting ? "جاري الدخول..." : "تسجيل الدخول"}
-          </button>
+          </SubmitButton>
         </form>
       </div>
     </main>
