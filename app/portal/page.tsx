@@ -15,7 +15,7 @@ export default async function PortalPage() {
   const db = getSupabaseAdmin();
 
   const [{ data: student }, rewards, transactions, tenantStatus] = await Promise.all([
-    db.from("students").select("points").eq("id", studentId).maybeSingle(),
+    db.from("students").select("points, student_code").eq("id", studentId).maybeSingle(),
     getPortalRewards(),
     getPortalTransactions(),
     getTenantStatus(),
@@ -24,6 +24,7 @@ export default async function PortalPage() {
   return (
     <PortalClient
       studentName={session.name}
+      studentCode={student?.student_code ?? null}
       initialBalance={student?.points ?? 0}
       initialRewards={rewards}
       initialTransactions={transactions}

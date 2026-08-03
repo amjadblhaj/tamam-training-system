@@ -6,13 +6,22 @@ import { Users, Gift, Award, Building2, TrendingUp, Activity } from "lucide-reac
 import { MetricCard } from "@/components/shared/MetricCard";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { SkeletonRows } from "@/components/shared/SkeletonRows";
+import { BranchBadge } from "@/components/shared/BranchBadge";
 import { getDashboardMetrics, getTopStudents, getRecentActivity } from "./actions";
 import type { Branch } from "@/types";
 
 const REFRESH_MS = 30_000;
 
-export function DashboardClient({ branches }: { branches: Branch[] }) {
-  const [branchId, setBranchId] = useState<number | null>(null);
+interface DashboardClientProps {
+  branches: Branch[];
+  isStaff: boolean;
+  staffBranchId: number | null;
+  staffBranchName: string | null;
+}
+
+export function DashboardClient({ branches, isStaff, staffBranchId, staffBranchName }: DashboardClientProps) {
+  const [selectedBranchId, setSelectedBranchId] = useState<number | null>(null);
+  const branchId = isStaff ? staffBranchId : selectedBranchId;
 
   const metricsQuery = useQuery({
     queryKey: ["dashboard-metrics", branchId],
@@ -38,21 +47,26 @@ export function DashboardClient({ branches }: { branches: Branch[] }) {
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-brand-text">لوحة التحكم</h1>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-bold text-brand-text">لوحة التحكم</h1>
+            {isStaff && staffBranchName && <BranchBadge branchName={staffBranchName} />}
+          </div>
           <p className="mt-1 text-sm text-brand-text-2">نظرة عامة على النشاط عبر الفروع</p>
         </div>
-        <select
-          value={branchId ?? ""}
-          onChange={(e) => setBranchId(e.target.value ? Number(e.target.value) : null)}
-          className="rounded-lg border border-brand-border bg-brand-surface px-3 py-2 text-sm text-brand-text focus:border-brand-green focus:outline-none"
-        >
-          <option value="">كل الفروع</option>
-          {branches.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.name_ar}
-            </option>
-          ))}
-        </select>
+        {!isStaff && (
+          <select
+            value={selectedBranchId ?? ""}
+            onChange={(e) => setSelectedBranchId(e.target.value ? Number(e.target.value) : null)}
+            className="rounded-lg border border-brand-border bg-brand-surface px-3 py-2 text-sm text-brand-text focus:border-brand-green focus:outline-none"
+          >
+            <option value="">كل الفروع</option>
+            {branches.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name_ar}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

@@ -94,7 +94,7 @@ export function GrantForm() {
                 setDropdownOpen(true);
               }}
               onFocus={() => setDropdownOpen(true)}
-              placeholder="ابحث بالاسم أو رقم الهاتف"
+              placeholder="ابحث بالاسم أو رقم الهاتف أو الكود"
               className="pr-9"
             />
           </div>
@@ -114,7 +114,13 @@ export function GrantForm() {
                   >
                     <span className="flex items-center gap-2 text-brand-text">
                       <User size={14} className="text-brand-text-3" />
-                      {s.full_name} <span className="text-brand-text-3">({s.branch_name_ar})</span>
+                      {s.full_name}
+                      {s.student_code && (
+                        <span className="rounded bg-brand-surface-3 px-1.5 py-0.5 font-mono text-xs text-brand-text-2">
+                          {s.student_code}
+                        </span>
+                      )}
+                      <span className="text-brand-text-3">({s.branch_name_ar})</span>
                     </span>
                     <span className="font-semibold text-brand-orange">{s.points}</span>
                   </button>

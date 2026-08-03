@@ -26,7 +26,14 @@ function Field({ label, error, children }: { label: string; error?: string; chil
   );
 }
 
-export function AddStudentModal({ branches, onClose }: { branches: Branch[]; onClose: () => void }) {
+interface AddStudentModalProps {
+  branches: Branch[];
+  isStaff: boolean;
+  staffBranchId: number | null;
+  onClose: () => void;
+}
+
+export function AddStudentModal({ branches, isStaff, staffBranchId, onClose }: AddStudentModalProps) {
   const queryClient = useQueryClient();
   const toast = useToast();
   const [serverError, setServerError] = useState<string | null>(null);
@@ -36,6 +43,9 @@ export function AddStudentModal({ branches, onClose }: { branches: Branch[]; onC
     formState: { errors, isSubmitting },
   } = useForm<CreateStudentFormInput, unknown, CreateStudentInput>({
     resolver: zodResolver(createStudentSchema),
+    // Staff never see the branch select, so seed the field with their own
+    // branch — the server independently re-derives and enforces this too.
+    defaultValues: isStaff && staffBranchId ? { branchId: staffBranchId as CreateStudentFormInput["branchId"] } : {},
   });
 
   const onSubmit = handleSubmit(async (values) => {
@@ -46,7 +56,7 @@ export function AddStudentModal({ branches, onClose }: { branches: Branch[]; onC
       return;
     }
     queryClient.invalidateQueries({ queryKey: ["students"] });
-    toast.success("تمت إضافة الطالب بنجاح");
+    toast.success(result.studentCode ? `تم تسجيل الطالب — الكود: ${result.studentCode}` : "تمت إضافة الطالب بنجاح");
     onClose();
   });
 
@@ -59,18 +69,20 @@ export function AddStudentModal({ branches, onClose }: { branches: Branch[]; onC
         <Field label="رقم الهاتف" error={errors.phone?.message}>
           <Input {...register("phone")} type="tel" inputMode="numeric" />
         </Field>
-        <Field label="الفرع" error={errors.branchId?.message}>
-          <select {...register("branchId")} defaultValue="" className={INPUT_CLASS}>
-            <option value="" disabled>
-              اختر الفرع
-            </option>
-            {branches.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name_ar}
+        {!isStaff && (
+          <Field label="الفرع" error={errors.branchId?.message}>
+            <select {...register("branchId")} defaultValue="" className={INPUT_CLASS}>
+              <option value="" disabled>
+                اختر الفرع
               </option>
-            ))}
-          </select>
-        </Field>
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name_ar}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
         {serverError && <p className="text-sm text-brand-orange">{serverError}</p>}
         <SubmitButton disabled={isSubmitting}>{isSubmitting ? "جاري الحفظ..." : "حفظ"}</SubmitButton>
       </form>

@@ -1,8 +1,10 @@
 import { notFound } from "next/navigation";
 import { getStudentById, getStudentPointsHistory, getStudentRedemptions } from "../actions";
 import { getBranches } from "@/lib/actions/branches";
+import { getSession } from "@/lib/auth/get-session";
 import { DeactivateStudentButton } from "@/components/students/DeactivateStudentButton";
 import { TransferStudentButton } from "@/components/students/TransferStudentModal";
+import { StudentCode } from "@/components/students/StudentCode";
 
 export default async function StudentDetailPage({ params }: { params: { id: string } }) {
   const id = Number(params.id);
@@ -11,17 +13,22 @@ export default async function StudentDetailPage({ params }: { params: { id: stri
   const student = await getStudentById(id);
   if (!student) notFound();
 
-  const [history, redemptions, branches] = await Promise.all([
+  const [history, redemptions, branches, session] = await Promise.all([
     getStudentPointsHistory(id),
     getStudentRedemptions(id),
     getBranches(),
+    getSession(),
   ]);
+  const isAdmin = session?.role === "admin";
 
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-brand-border bg-brand-surface p-5">
         <div>
-          <h1 className="text-xl font-bold text-brand-text">{student.full_name}</h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-xl font-bold text-brand-text">{student.full_name}</h1>
+            <StudentCode code={student.student_code} />
+          </div>
           <p className="mt-1 text-sm text-brand-text-2">
             {student.phone} — {student.branch_name_ar}
           </p>
@@ -29,11 +36,13 @@ export default async function StudentDetailPage({ params }: { params: { id: stri
         </div>
         {student.active && (
           <div className="flex items-center gap-2">
-            <TransferStudentButton
-              studentId={student.id}
-              currentBranchId={student.branch_id}
-              branches={branches}
-            />
+            {isAdmin && (
+              <TransferStudentButton
+                studentId={student.id}
+                currentBranchId={student.branch_id}
+                branches={branches}
+              />
+            )}
             <DeactivateStudentButton studentId={student.id} />
           </div>
         )}

@@ -7,12 +7,21 @@ import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useStudents } from "@/hooks/useStudents";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { SkeletonRows } from "@/components/shared/SkeletonRows";
+import { BranchBadge } from "@/components/shared/BranchBadge";
+import { StudentCode } from "@/components/students/StudentCode";
 import { Button } from "@/components/ui/Button";
 import { AddStudentModal } from "@/components/students/AddStudentModal";
 import { useReadOnly } from "@/hooks/useReadOnly";
 import type { Branch } from "@/types";
 
-export function StudentsClient({ branches }: { branches: Branch[] }) {
+interface StudentsClientProps {
+  branches: Branch[];
+  isStaff: boolean;
+  staffBranchId: number | null;
+  staffBranchName: string | null;
+}
+
+export function StudentsClient({ branches, isStaff, staffBranchId, staffBranchName }: StudentsClientProps) {
   const { canEdit } = useReadOnly();
   const [search, setSearch] = useState("");
   const [branchId, setBranchId] = useState<number | null>(null);
@@ -20,13 +29,17 @@ export function StudentsClient({ branches }: { branches: Branch[] }) {
   const [modalOpen, setModalOpen] = useState(false);
   const debouncedSearch = useDebouncedValue(search, 300);
 
-  const { data, isLoading } = useStudents({ search: debouncedSearch, branchId, page });
+  const effectiveBranchId = isStaff ? staffBranchId : branchId;
+  const { data, isLoading } = useStudents({ search: debouncedSearch, branchId: effectiveBranchId, page });
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
 
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold text-brand-text">الطلاب</h1>
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-2xl font-bold text-brand-text">الطلاب</h1>
+          {isStaff && staffBranchName && <BranchBadge branchName={staffBranchName} />}
+        </div>
         {canEdit && (
           <Button onClick={() => setModalOpen(true)}>
             <Plus size={16} /> إضافة طالب
@@ -43,25 +56,27 @@ export function StudentsClient({ branches }: { branches: Branch[] }) {
               setSearch(e.target.value);
               setPage(1);
             }}
-            placeholder="بحث بالاسم أو رقم الهاتف"
+            placeholder="بحث بالاسم أو رقم الهاتف أو الكود"
             className="w-full rounded-lg border border-brand-border py-2 pr-9 pl-3 text-sm text-brand-text focus:border-brand-green focus:outline-none"
           />
         </div>
-        <select
-          value={branchId ?? ""}
-          onChange={(e) => {
-            setBranchId(e.target.value ? Number(e.target.value) : null);
-            setPage(1);
-          }}
-          className="rounded-lg border border-brand-border px-3 py-2 text-sm text-brand-text focus:border-brand-green focus:outline-none"
-        >
-          <option value="">كل الفروع</option>
-          {branches.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.name_ar}
-            </option>
-          ))}
-        </select>
+        {!isStaff && (
+          <select
+            value={branchId ?? ""}
+            onChange={(e) => {
+              setBranchId(e.target.value ? Number(e.target.value) : null);
+              setPage(1);
+            }}
+            className="rounded-lg border border-brand-border px-3 py-2 text-sm text-brand-text focus:border-brand-green focus:outline-none"
+          >
+            <option value="">كل الفروع</option>
+            {branches.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name_ar}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-brand-border bg-brand-surface">
@@ -73,6 +88,7 @@ export function StudentsClient({ branches }: { branches: Branch[] }) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-brand-border text-right text-brand-text-2">
+                <th className="px-4 py-3 font-medium">الكود</th>
                 <th className="px-4 py-3 font-medium">الاسم</th>
                 <th className="px-4 py-3 font-medium">رقم الهاتف</th>
                 <th className="px-4 py-3 font-medium">الفرع</th>
@@ -83,6 +99,9 @@ export function StudentsClient({ branches }: { branches: Branch[] }) {
             <tbody>
               {data.students.map((s) => (
                 <tr key={s.id} className="border-b border-brand-border last:border-0">
+                  <td className="px-4 py-3">
+                    <StudentCode code={s.student_code} />
+                  </td>
                   <td className="px-4 py-3 text-brand-text">{s.full_name}</td>
                   <td className="px-4 py-3 text-brand-text-2">{s.phone}</td>
                   <td className="px-4 py-3 text-brand-text-2">{s.branch_name_ar}</td>
@@ -123,7 +142,14 @@ export function StudentsClient({ branches }: { branches: Branch[] }) {
         </div>
       )}
 
-      {modalOpen && <AddStudentModal branches={branches} onClose={() => setModalOpen(false)} />}
+      {modalOpen && (
+        <AddStudentModal
+          branches={branches}
+          isStaff={isStaff}
+          staffBranchId={staffBranchId}
+          onClose={() => setModalOpen(false)}
+        />
+      )}
     </div>
   );
 }

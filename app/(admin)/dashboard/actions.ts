@@ -2,13 +2,16 @@
 
 import { getSupabaseAdmin } from "@/lib/supabase/server";
 import { getSession } from "@/lib/auth/get-session";
+import { getScope, getBranchFilter } from "@/lib/auth/scope";
 import { relationValue } from "@/lib/supabase/relation";
 import type { DashboardMetrics, TopStudent, ActivityEntry } from "@/types";
 
 export async function getDashboardMetrics(branchId: number | null): Promise<DashboardMetrics> {
   const session = await getSession();
-  if (!session) return { totalStudents: 0, totalPointsGranted: 0, rewardsRedeemed: 0, activeBranches: 0 };
-  const tenantId = session.tenantId;
+  const scope = session && getScope(session);
+  if (!scope) return { totalStudents: 0, totalPointsGranted: 0, rewardsRedeemed: 0, activeBranches: 0 };
+  const tenantId = scope.tenantId;
+  const effectiveBranchId = getBranchFilter(scope, branchId);
   const db = getSupabaseAdmin();
 
   let studentsQuery = db
@@ -16,11 +19,11 @@ export async function getDashboardMetrics(branchId: number | null): Promise<Dash
     .select("id", { count: "exact", head: true })
     .eq("tenant_id", tenantId)
     .eq("active", true);
-  if (branchId) studentsQuery = studentsQuery.eq("branch_id", branchId);
+  if (effectiveBranchId) studentsQuery = studentsQuery.eq("branch_id", effectiveBranchId);
   const { count: totalStudents } = await studentsQuery;
 
   let pointsQuery = db.from("points_log").select("points").eq("tenant_id", tenantId).gt("points", 0);
-  if (branchId) pointsQuery = pointsQuery.eq("branch_id", branchId);
+  if (effectiveBranchId) pointsQuery = pointsQuery.eq("branch_id", effectiveBranchId);
   const { data: pointsRows } = await pointsQuery;
   const totalPointsGranted = (pointsRows ?? []).reduce((sum, r) => sum + r.points, 0);
 
@@ -28,7 +31,7 @@ export async function getDashboardMetrics(branchId: number | null): Promise<Dash
     .from("redemptions")
     .select("id, students!inner(branch_id)")
     .eq("tenant_id", tenantId);
-  if (branchId) redemptionsQuery = redemptionsQuery.eq("students.branch_id", branchId);
+  if (effectiveBranchId) redemptionsQuery = redemptionsQuery.eq("students.branch_id", effectiveBranchId);
   const { data: redemptionRows } = await redemptionsQuery;
   const rewardsRedeemed = (redemptionRows ?? []).length;
 
@@ -37,7 +40,7 @@ export async function getDashboardMetrics(branchId: number | null): Promise<Dash
     .select("id", { count: "exact", head: true })
     .eq("tenant_id", tenantId)
     .eq("active", true);
-  if (branchId) branchesQuery = branchesQuery.eq("id", branchId);
+  if (effectiveBranchId) branchesQuery = branchesQuery.eq("id", effectiveBranchId);
   const { count: activeBranches } = await branchesQuery;
 
   return {
@@ -50,17 +53,19 @@ export async function getDashboardMetrics(branchId: number | null): Promise<Dash
 
 export async function getTopStudents(branchId: number | null): Promise<TopStudent[]> {
   const session = await getSession();
-  if (!session) return [];
+  const scope = session && getScope(session);
+  if (!scope) return [];
+  const effectiveBranchId = getBranchFilter(scope, branchId);
 
   const db = getSupabaseAdmin();
   let query = db
     .from("students")
     .select("id, full_name, points, branches(name_ar)")
-    .eq("tenant_id", session.tenantId)
+    .eq("tenant_id", scope.tenantId)
     .eq("active", true)
     .order("points", { ascending: false })
     .limit(5);
-  if (branchId) query = query.eq("branch_id", branchId);
+  if (effectiveBranchId) query = query.eq("branch_id", effectiveBranchId);
   const { data } = await query;
 
   return (data ?? []).map((s) => ({
@@ -73,16 +78,18 @@ export async function getTopStudents(branchId: number | null): Promise<TopStuden
 
 export async function getRecentActivity(branchId: number | null): Promise<ActivityEntry[]> {
   const session = await getSession();
-  if (!session) return [];
+  const scope = session && getScope(session);
+  if (!scope) return [];
+  const effectiveBranchId = getBranchFilter(scope, branchId);
 
   const db = getSupabaseAdmin();
   let query = db
     .from("points_log")
     .select("id, points, action, granted_by, created_at, students(full_name), branches(name_ar)")
-    .eq("tenant_id", session.tenantId)
+    .eq("tenant_id", scope.tenantId)
     .order("created_at", { ascending: false })
     .limit(10);
-  if (branchId) query = query.eq("branch_id", branchId);
+  if (effectiveBranchId) query = query.eq("branch_id", effectiveBranchId);
   const { data } = await query;
 
   return (data ?? []).map((r) => ({

@@ -10,10 +10,12 @@ import { logout } from "@/app/login/actions";
 import { useToast } from "@/components/providers/toast-provider";
 import { useReadOnly } from "@/hooks/useReadOnly";
 import { ConfettiBurst } from "@/components/portal/ConfettiBurst";
+import { StudentCode } from "@/components/students/StudentCode";
 import type { PortalReward, PortalTransaction, TenantStatusInfo } from "@/types";
 
 interface PortalClientProps {
   studentName: string;
+  studentCode: string | null;
   initialBalance: number;
   initialRewards: PortalReward[];
   initialTransactions: PortalTransaction[];
@@ -22,6 +24,7 @@ interface PortalClientProps {
 
 export function PortalClient({
   studentName,
+  studentCode,
   initialBalance,
   initialRewards,
   initialTransactions,
@@ -87,6 +90,11 @@ export function PortalClient({
           <div>
             <Image src="/logo-mark.png" alt="تمام" width={90} height={33} className="h-auto w-[90px]" priority />
             <p className="mt-1 text-sm text-brand-surface-2">مرحبًا، {studentName}</p>
+            {studentCode && (
+              <div className="mt-1">
+                <StudentCode code={studentCode} />
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-3">
             <Link href="/portal/leaderboard" className="flex items-center gap-1 text-sm text-brand-orange">

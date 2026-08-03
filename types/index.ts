@@ -24,6 +24,7 @@ export interface StudentRow {
   phone: string;
   branch_id: number;
   branch_name_ar: string;
+  student_code: string | null;
   points: number;
   active: boolean;
   joined_at: string;
@@ -95,10 +96,15 @@ export interface ActionResult {
   error?: string;
 }
 
+export interface CreateStudentResult extends ActionResult {
+  studentCode?: string;
+}
+
 export interface StudentSearchResult {
   id: number;
   full_name: string;
   phone: string;
+  student_code: string | null;
   points: number;
   branch_name_ar: string;
 }
@@ -125,18 +131,22 @@ export interface ExcelProcessResult {
 export interface ActivityLogRow {
   id: number;
   student_name: string;
+  student_code: string | null;
+  branch_id: number | null;
   branch_name_ar: string;
   action: string;
   points: number;
   type: string;
   granted_by: string;
   created_at: string;
+  reversed: boolean;
 }
 
 export interface ActivityLogParams {
   branchId?: number | null;
   type?: string | null;
   staffUsername?: string;
+  search?: string;
   dateFrom?: string;
   dateTo?: string;
   page?: number;
