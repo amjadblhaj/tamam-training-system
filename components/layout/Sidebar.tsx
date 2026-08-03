@@ -32,7 +32,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/registration-links", label: "روابط التسجيل", icon: Link2 },
   { href: "/leaderboards", label: "لوحات المتصدرين", icon: Trophy },
   { href: "/grant", label: "منح النقاط", icon: Gift },
-  { href: "/excel", label: "استيراد إكسل", icon: FileSpreadsheet },
+  { href: "/excel", label: "منح النقاط بالإكسل", icon: FileSpreadsheet },
   { href: "/activity", label: "سجل النشاط", icon: ClipboardList },
   { href: "/rewards", label: "المكافآت", icon: Award, adminOnly: true },
   { href: "/settings", label: "الإعدادات", icon: Settings, adminOnly: true },

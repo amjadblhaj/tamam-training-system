@@ -116,16 +116,64 @@ export interface GrantPointsResult {
   newBalance?: number;
 }
 
-export interface ExcelRowInput {
+// ---- Phase 5: advanced Excel granting wizard (name+phone, branch-aware) ----
+
+export interface ExcelNameRow {
+  name: string;
   phone: string;
-  points: number;
-  reason: string;
-  rowNumber: number;
 }
 
-export interface ExcelProcessResult {
-  successCount: number;
+export type ProcessedPhoneStatus = "existing_this_branch" | "other_branch" | "new";
+
+export interface ProcessedPhone {
+  phone: string;
+  name: string;
+  occurrences: number;
+  status: ProcessedPhoneStatus;
+  studentId?: number;
+  studentCode?: string | null;
+  pointsToGrant: number;
+}
+
+export interface ExcelBatchProcessResult {
+  branchId: number;
+  reason: string;
+  pointsPerOccurrence: number;
+  existingMatches: ProcessedPhone[];
+  otherBranchSkipped: ProcessedPhone[];
+  newPhones: ProcessedPhone[];
   errors: string[];
+}
+
+export interface ExcelBatchExecuteInput {
+  tenantId: string;
+  branchId: number;
+  reason: string;
+  pointsPerOccurrence: number;
+  existingMatches: ProcessedPhone[];
+  approvedNewPhones: ProcessedPhone[];
+  grantedBy: string;
+}
+
+export interface ExcelBatchExecuteResult {
+  createdCount: number;
+  grantedCount: number;
+  totalPoints: number;
+  created: { name: string; phone: string; code: string }[];
+  granted: { name: string; points: number }[];
+  errors: string[];
+}
+
+export interface ExcelWizardProcessResponse {
+  success: boolean;
+  error?: string;
+  result?: ExcelBatchProcessResult;
+}
+
+export interface ExcelWizardExecuteResponse {
+  success: boolean;
+  error?: string;
+  result?: ExcelBatchExecuteResult;
 }
 
 export interface ActivityLogRow {

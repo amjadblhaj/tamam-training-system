@@ -23,9 +23,6 @@ export const RATE_LIMIT_SCOPE = {
   SUPER_ADMIN_LOGIN: "super-admin",
 } as const;
 
-/** Max rows accepted per Excel points-import batch — bounds DB load from a single upload. */
-export const MAX_EXCEL_ROWS = 1000;
-
 /** Session lifetimes, per role (see lib/auth/session.ts / super-admin-session.ts). */
 export const STAFF_SESSION_MAX_AGE_SECONDS = 8 * 60 * 60; // 8 hours
 export const STUDENT_SESSION_MAX_AGE_SECONDS = 8 * 60 * 60; // 8 hours
