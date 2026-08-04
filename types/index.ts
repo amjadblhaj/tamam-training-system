@@ -54,6 +54,36 @@ export interface RedemptionEntry {
   redeemed_at: string;
 }
 
+export interface RedemptionQueueRow {
+  id: number;
+  student_id: number;
+  student_name: string;
+  student_code: string | null;
+  branch_id: number | null;
+  branch_name_ar: string;
+  reward_name_ar: string;
+  points_required: number;
+  redeemed_at: string;
+  status: string;
+  approved_by: string | null;
+  approved_at: string | null;
+  note: string | null;
+}
+
+export interface RedemptionQueueParams {
+  status?: string | null;
+  branchId?: number | null;
+  search?: string;
+  page?: number;
+}
+
+export interface RedemptionQueueResult {
+  rows: RedemptionQueueRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 export interface DashboardMetrics {
   totalStudents: number;
   totalPointsGranted: number;
@@ -174,6 +204,13 @@ export interface ExcelWizardExecuteResponse {
   success: boolean;
   error?: string;
   result?: ExcelBatchExecuteResult;
+}
+
+export interface BulkUndoResponse {
+  success: boolean;
+  error?: string;
+  succeeded?: number[];
+  skipped?: { id: number; reason: string }[];
 }
 
 export interface ActivityLogRow {

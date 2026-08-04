@@ -7,8 +7,8 @@ import { assertTenantCanWrite } from "@/lib/tenant/resolve-status";
 import { comparePassword } from "@/lib/auth/password";
 import { canActOnTransaction } from "@/lib/auth/transactionPermissions";
 import { recordAuditLog } from "@/lib/audit";
-import { ACTIVITY_PAGE_SIZE } from "@/lib/constants";
-import type { ActivityLogParams, ActivityLogResult, ActivityLogRow, ActionResult } from "@/types";
+import { ACTIVITY_PAGE_SIZE, MAX_BULK_UNDO } from "@/lib/constants";
+import type { ActivityLogParams, ActivityLogResult, ActivityLogRow, ActionResult, BulkUndoResponse } from "@/types";
 
 const SELECT_COLUMNS =
   "id, points, action, type, granted_by, created_at, reversed, branch_id, students!inner(full_name, student_code), branches(name_ar)";
@@ -119,6 +119,28 @@ export async function getActivityLogForExport(
   return ((data ?? []) as unknown as RawActivityRow[]).map(mapRow);
 }
 
+const UNDO_ERROR_MESSAGES: Record<string, string> = {
+  "Transaction not found": "الحركة غير موجودة",
+  "Transaction already reversed": "تم التراجع عن هذه الحركة مسبقاً",
+  "Cannot undo a reversal": "لا يمكن التراجع عن حركة عكسية",
+  "Student not found": "الطالب غير موجود",
+};
+
+async function verifyOwnPassword(
+  db: ReturnType<typeof getSupabaseAdmin>,
+  tenantId: string,
+  staffId: string,
+  password: string
+): Promise<boolean> {
+  const { data: staffRow } = await db
+    .from("staff")
+    .select("password")
+    .eq("id", staffId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  return !!staffRow && (await comparePassword(password, staffRow.password));
+}
+
 /**
  * Reverses a grant/redeem/excel/manual/adjustment transaction. This is the
  * only way to correct a mistake — there is no delete anywhere in the ledger.
@@ -136,13 +158,7 @@ export async function undoTransaction(transactionId: number, password: string): 
 
   const db = getSupabaseAdmin();
 
-  const { data: staffRow } = await db
-    .from("staff")
-    .select("password")
-    .eq("id", session.id)
-    .eq("tenant_id", scope.tenantId)
-    .maybeSingle();
-  if (!staffRow || !(await comparePassword(password, staffRow.password))) {
+  if (!(await verifyOwnPassword(db, scope.tenantId, session.id, password))) {
     return { success: false, error: "كلمة المرور غير صحيحة" };
   }
 
@@ -165,13 +181,7 @@ export async function undoTransaction(transactionId: number, password: string): 
   });
 
   if (error || !data?.success) {
-    const message: Record<string, string> = {
-      "Transaction not found": "الحركة غير موجودة",
-      "Transaction already reversed": "تم التراجع عن هذه الحركة مسبقاً",
-      "Cannot undo a reversal": "لا يمكن التراجع عن حركة عكسية",
-      "Student not found": "الطالب غير موجود",
-    };
-    return { success: false, error: message[data?.error] ?? data?.error ?? "حدث خطأ أثناء التراجع" };
+    return { success: false, error: UNDO_ERROR_MESSAGES[data?.error] ?? data?.error ?? "حدث خطأ أثناء التراجع" };
   }
 
   await recordAuditLog({
@@ -184,4 +194,78 @@ export async function undoTransaction(transactionId: number, password: string): 
   });
 
   return { success: true };
+}
+
+/**
+ * Undoes several transactions with a single password check, then loops the
+ * same atomic `undo_transaction` RPC per id (no new bulk SQL function —
+ * each row is already row-locked and independent). A transaction that can't
+ * be undone (already reversed, a reversal itself, would go negative) is
+ * skipped with a reason rather than failing the whole batch.
+ */
+export async function bulkUndoTransactions(transactionIds: number[], password: string): Promise<BulkUndoResponse> {
+  const session = await getSession();
+  if (!session) return { success: false, error: "غير مصرح" };
+  const scope = getScope(session);
+  if (!scope) return { success: false, error: "غير مصرح" };
+
+  const writeCheck = await assertTenantCanWrite(scope.tenantId);
+  if (!writeCheck.allowed) return { success: false, error: writeCheck.error };
+
+  if (!Array.isArray(transactionIds) || transactionIds.length === 0) {
+    return { success: false, error: "لم يتم تحديد أي حركة" };
+  }
+  if (transactionIds.length > MAX_BULK_UNDO) {
+    return { success: false, error: `الحد الأقصى ${MAX_BULK_UNDO} حركة في المرة الواحدة` };
+  }
+
+  const db = getSupabaseAdmin();
+
+  if (!(await verifyOwnPassword(db, scope.tenantId, session.id, password))) {
+    return { success: false, error: "كلمة المرور غير صحيحة" };
+  }
+
+  const succeeded: number[] = [];
+  const skipped: { id: number; reason: string }[] = [];
+
+  for (const id of transactionIds) {
+    const { data: txn } = await db
+      .from("points_log")
+      .select("id, branch_id")
+      .eq("id", id)
+      .eq("tenant_id", scope.tenantId)
+      .maybeSingle();
+    if (!txn) {
+      skipped.push({ id, reason: "الحركة غير موجودة" });
+      continue;
+    }
+    if (!canActOnTransaction(scope, txn)) {
+      skipped.push({ id, reason: "لا تملك صلاحية على فرع آخر" });
+      continue;
+    }
+
+    const { data, error } = await db.rpc("undo_transaction", {
+      p_tenant_id: scope.tenantId,
+      p_transaction_id: id,
+      p_performed_by: session.name,
+    });
+
+    if (error || !data?.success) {
+      skipped.push({ id, reason: UNDO_ERROR_MESSAGES[data?.error] ?? data?.error ?? "تعذر التراجع" });
+      continue;
+    }
+
+    succeeded.push(id);
+    await recordAuditLog({
+      tenantId: scope.tenantId,
+      actor: session.name,
+      actorRole: session.role,
+      action: "transaction_undo",
+      entity: "points_log",
+      entityId: String(id),
+      metadata: { bulk: true },
+    });
+  }
+
+  return { success: true, succeeded, skipped };
 }

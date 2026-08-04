@@ -13,6 +13,7 @@ const STAFF_AND_ADMIN = [
   "/grant",
   "/excel",
   "/activity",
+  "/redemptions",
 ];
 const STUDENT_ONLY = ["/portal"];
 const SUPER_ADMIN_PREFIX = "/super-admin";
@@ -106,6 +107,7 @@ export const config = {
     "/excel/:path*",
     "/rewards/:path*",
     "/activity/:path*",
+    "/redemptions/:path*",
     "/settings/:path*",
     "/portal/:path*",
     "/super-admin/:path*",

@@ -8,6 +8,10 @@ export const PHONE_REGEX_MESSAGE = "رقم الهاتف يجب أن يتكون �
 /** Row-count page sizes for paginated admin lists. Intentionally distinct per list. */
 export const STUDENTS_PAGE_SIZE = 20;
 export const ACTIVITY_PAGE_SIZE = 50;
+export const REDEMPTIONS_PAGE_SIZE = 20;
+
+/** Bounds how many transactions can be undone in a single bulk-undo request. */
+export const MAX_BULK_UNDO = 100;
 
 /** How long a "copied!" affordance stays visible before reverting. */
 export const COPY_FEEDBACK_MS = 2000;

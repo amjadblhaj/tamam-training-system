@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import {
   LayoutDashboard,
   Users,
@@ -14,8 +15,10 @@ import {
   Settings,
   Link2,
   Trophy,
+  PackageCheck,
   type LucideIcon,
 } from "lucide-react";
+import { getPendingRedemptionsCount } from "@/app/(admin)/redemptions/actions";
 import type { SessionRole } from "@/lib/auth/session";
 
 interface NavItem {
@@ -34,9 +37,12 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/grant", label: "منح النقاط", icon: Gift },
   { href: "/excel", label: "منح النقاط بالإكسل", icon: FileSpreadsheet },
   { href: "/activity", label: "سجل النشاط", icon: ClipboardList },
+  { href: "/redemptions", label: "طلبات الاستبدال", icon: PackageCheck },
   { href: "/rewards", label: "المكافآت", icon: Award, adminOnly: true },
   { href: "/settings", label: "الإعدادات", icon: Settings, adminOnly: true },
 ];
+
+const PENDING_REDEMPTIONS_REFRESH_MS = 30_000;
 
 interface SidebarProps {
   role: SessionRole;
@@ -47,6 +53,12 @@ interface SidebarProps {
 export function Sidebar({ role, open, onNavigate }: SidebarProps) {
   const pathname = usePathname();
   const items = NAV_ITEMS.filter((item) => !item.adminOnly || role === "admin");
+
+  const { data: pendingRedemptions = 0 } = useQuery({
+    queryKey: ["pending-redemptions-count"],
+    queryFn: () => getPendingRedemptionsCount(),
+    refetchInterval: PENDING_REDEMPTIONS_REFRESH_MS,
+  });
 
   return (
     <nav
@@ -62,6 +74,7 @@ export function Sidebar({ role, open, onNavigate }: SidebarProps) {
         {items.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
           const Icon = item.icon;
+          const showBadge = item.href === "/redemptions" && pendingRedemptions > 0;
           return (
             <li key={item.href}>
               <Link
@@ -72,7 +85,12 @@ export function Sidebar({ role, open, onNavigate }: SidebarProps) {
                 }`}
               >
                 <Icon size={18} />
-                {item.label}
+                <span className="flex-1">{item.label}</span>
+                {showBadge && (
+                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-orange px-1.5 text-xs font-bold text-brand-dark">
+                    {pendingRedemptions}
+                  </span>
+                )}
               </Link>
             </li>
           );

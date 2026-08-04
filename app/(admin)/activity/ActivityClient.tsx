@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import * as XLSX from "xlsx";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ClipboardList, Download, Undo2 } from "lucide-react";
@@ -9,11 +9,13 @@ import { SkeletonRows } from "@/components/shared/SkeletonRows";
 import { BranchBadge } from "@/components/shared/BranchBadge";
 import { StudentCode } from "@/components/students/StudentCode";
 import { PasswordConfirmModal } from "@/components/transactions/PasswordConfirmModal";
+import { BulkActionBar } from "@/components/transactions/BulkActionBar";
 import { useToast } from "@/components/providers/toast-provider";
 import { useReadOnly } from "@/hooks/useReadOnly";
+import { useBulkSelection } from "@/hooks/useBulkSelection";
 import { canActOnTransaction } from "@/lib/auth/transactionPermissions";
 import { getActivityLog, getActivityLogForExport } from "./actions";
-import type { Branch, ActivityLogRow } from "@/types";
+import type { Branch, ActivityLogRow, BulkUndoResponse } from "@/types";
 
 const TYPE_LABELS: Record<string, string> = {
   grant: "منح",
@@ -72,6 +74,7 @@ export function ActivityClient({
   const [page, setPage] = useState(1);
   const [exporting, setExporting] = useState(false);
   const [undoTarget, setUndoTarget] = useState<ActivityLogRow | null>(null);
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
 
   const branchId = isStaff ? staffBranchId : selectedBranchId;
   const filters = { branchId, type: type || null, search, staffUsername, dateFrom, dateTo };
@@ -84,6 +87,18 @@ export function ActivityClient({
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
 
   const scope = { role: (isAdmin ? "admin" : "staff") as "admin" | "staff", branchId: staffBranchId };
+
+  const undoableIds = (data?.rows ?? [])
+    .filter((r) => canEdit && r.type !== "reversal" && !r.reversed && canActOnTransaction(scope, r))
+    .map((r) => r.id);
+  const bulkSelection = useBulkSelection(undoableIds);
+
+  // A page or filter change makes "select all on this page" ambiguous with
+  // stale ids from a previous page — clear rather than silently carry them.
+  useEffect(() => {
+    bulkSelection.clear();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- clearing on page/filter change only, not on every bulkSelection identity change
+  }, [page, branchId, type, search, staffUsername, dateFrom, dateTo]);
 
   async function handleExport() {
     setExporting(true);
@@ -112,6 +127,15 @@ export function ActivityClient({
   function handleUndoSuccess() {
     setUndoTarget(null);
     toast.success("تم التراجع عن الحركة بنجاح");
+    queryClient.invalidateQueries({ queryKey: ["activity-log"] });
+  }
+
+  function handleBulkUndoSuccess(result?: BulkUndoResponse) {
+    setBulkConfirmOpen(false);
+    bulkSelection.clear();
+    const succeededCount = result?.succeeded?.length ?? 0;
+    const skippedCount = result?.skipped?.length ?? 0;
+    toast.success(`تم التراجع عن ${succeededCount} حركة، تم تجاهل ${skippedCount}`);
     queryClient.invalidateQueries({ queryKey: ["activity-log"] });
   }
 
@@ -207,6 +231,8 @@ export function ActivityClient({
         />
       </div>
 
+      <BulkActionBar count={bulkSelection.count} onUndoClick={() => setBulkConfirmOpen(true)} />
+
       <div className="overflow-x-auto rounded-xl border border-brand-border bg-brand-surface">
         {isLoading ? (
           <div className="space-y-2 p-4">
@@ -216,6 +242,11 @@ export function ActivityClient({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-brand-border text-right text-brand-text-2">
+                <th className="w-8 px-4 py-3">
+                  {undoableIds.length > 0 && (
+                    <input type="checkbox" checked={bulkSelection.allSelected} onChange={bulkSelection.toggleAll} />
+                  )}
+                </th>
                 <th className="px-4 py-3 font-medium">الكود</th>
                 <th className="px-4 py-3 font-medium">الطالب</th>
                 <th className="px-4 py-3 font-medium">الفرع</th>
@@ -233,6 +264,15 @@ export function ActivityClient({
                   canEdit && r.type !== "reversal" && !r.reversed && canActOnTransaction(scope, r);
                 return (
                   <tr key={r.id} className="border-b border-brand-border last:border-0">
+                    <td className="px-4 py-3">
+                      {canUndo && (
+                        <input
+                          type="checkbox"
+                          checked={bulkSelection.selected.has(r.id)}
+                          onChange={() => bulkSelection.toggle(r.id)}
+                        />
+                      )}
+                    </td>
                     <td className="px-4 py-3">
                       <StudentCode code={r.student_code} />
                     </td>
@@ -300,6 +340,14 @@ export function ActivityClient({
           transaction={undoTarget}
           onClose={() => setUndoTarget(null)}
           onSuccess={handleUndoSuccess}
+        />
+      )}
+
+      {bulkConfirmOpen && (
+        <PasswordConfirmModal
+          bulkIds={Array.from(bulkSelection.selected)}
+          onClose={() => setBulkConfirmOpen(false)}
+          onSuccess={handleBulkUndoSuccess}
         />
       )}
     </div>
