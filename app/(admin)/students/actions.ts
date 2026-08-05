@@ -6,6 +6,8 @@ import { assertTenantCanWrite } from "@/lib/tenant/resolve-status";
 import { generatePlaceholderPasswordHash } from "@/lib/auth/generate-placeholder-password";
 import { revokeAllSessionsForSubject } from "@/lib/auth/session-store";
 import { getScope, getBranchFilter, assertBranchAccess } from "@/lib/auth/scope";
+import { comparePassword } from "@/lib/auth/password";
+import { recordStudentRegistrations } from "@/lib/students/registrationLog";
 import { createStudentSchema, type CreateStudentInput } from "@/lib/validations/student";
 import { STUDENTS_PAGE_SIZE } from "@/lib/constants";
 import { relationValue } from "@/lib/supabase/relation";
@@ -19,7 +21,11 @@ import type {
   GetStudentsResult,
   ActionResult,
   CreateStudentResult,
+  DeleteStudentsResponse,
 } from "@/types";
+
+/** Bounds how many students a single bulk-delete request can target. */
+const MAX_BULK_DELETE_STUDENTS = 100;
 
 function sanitizeSearchTerm(input: string): string {
   return input.replace(/[,()%]/g, "").trim();
@@ -153,7 +159,8 @@ export async function getStudentRedemptions(id: number): Promise<RedemptionEntry
 
 export async function createStudent(input: CreateStudentInput): Promise<CreateStudentResult> {
   const session = await getSession();
-  const scope = session && getScope(session);
+  if (!session) return { success: false, error: "غير مصرح" };
+  const scope = getScope(session);
   if (!scope) return { success: false, error: "غير مصرح" };
 
   const writeCheck = await assertTenantCanWrite(scope.tenantId);
@@ -196,19 +203,34 @@ export async function createStudent(input: CreateStudentInput): Promise<CreateSt
   }
 
   const hashed = await generatePlaceholderPasswordHash();
-  const { error } = await db.from("students").insert({
-    full_name: fullName,
-    phone,
-    branch_id: branchId,
-    student_code: codeResult.code,
-    student_sequence: codeResult.sequence,
-    password: hashed,
-    tenant_id: scope.tenantId,
-  });
+  const { data: newStudent, error } = await db
+    .from("students")
+    .insert({
+      full_name: fullName,
+      phone,
+      branch_id: branchId,
+      student_code: codeResult.code,
+      student_sequence: codeResult.sequence,
+      password: hashed,
+      tenant_id: scope.tenantId,
+    })
+    .select("id")
+    .single();
 
-  if (error) {
+  if (error || !newStudent) {
     return { success: false, error: "حدث خطأ أثناء إضافة الطالب" };
   }
+
+  await recordStudentRegistrations([
+    {
+      tenantId: scope.tenantId,
+      studentId: newStudent.id,
+      fullName,
+      studentCode: codeResult.code as string,
+      branchId,
+      grantedBy: session.name,
+    },
+  ]);
 
   return { success: true, studentCode: codeResult.code as string };
 }
@@ -282,4 +304,80 @@ export async function deactivateStudent(id: number): Promise<ActionResult> {
   });
 
   return { success: true };
+}
+
+/**
+ * Admin-only soft delete (single or bulk) — sets `active = false` so the
+ * student disappears from lists/dashboards/grant search/Excel matching
+ * while their points_log/redemption history stays intact for the archive.
+ * Distinct from `deactivateStudent` above (staff-usable, no password): this
+ * is the students-list "delete" action, gated by the admin's own password,
+ * verified once for however many ids are passed. A student that can't be
+ * deleted (not found) is reported individually rather than failing the
+ * whole batch, matching bulk undo's partial-failure model.
+ */
+export async function deleteStudents(ids: number[], password: string): Promise<DeleteStudentsResponse> {
+  const session = await getSession();
+  if (!session) return { success: false, error: "غير مصرح" };
+  if (session.role !== "admin") return { success: false, error: "هذا الإجراء متاح للمدير فقط" };
+  const scope = getScope(session);
+  if (!scope) return { success: false, error: "غير مصرح" };
+
+  const writeCheck = await assertTenantCanWrite(scope.tenantId);
+  if (!writeCheck.allowed) return { success: false, error: writeCheck.error };
+
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return { success: false, error: "لم يتم تحديد أي طالب" };
+  }
+  if (ids.length > MAX_BULK_DELETE_STUDENTS) {
+    return { success: false, error: `الحد الأقصى ${MAX_BULK_DELETE_STUDENTS} طالب في المرة الواحدة` };
+  }
+
+  const db = getSupabaseAdmin();
+
+  const { data: staffRow } = await db
+    .from("staff")
+    .select("password")
+    .eq("id", session.id)
+    .eq("tenant_id", scope.tenantId)
+    .maybeSingle();
+  if (!staffRow || !(await comparePassword(password, staffRow.password))) {
+    return { success: false, error: "كلمة المرور غير صحيحة" };
+  }
+
+  const { data: students } = await db.from("students").select("id").eq("tenant_id", scope.tenantId).in("id", ids);
+  const validIds = new Set((students ?? []).map((s) => s.id));
+
+  const deleted: number[] = [];
+  const failed: { id: number; error: string }[] = [];
+
+  for (const id of ids) {
+    if (!validIds.has(id)) {
+      failed.push({ id, error: "الطالب غير موجود" });
+      continue;
+    }
+
+    const { error } = await db
+      .from("students")
+      .update({ active: false })
+      .eq("id", id)
+      .eq("tenant_id", scope.tenantId);
+    if (error) {
+      failed.push({ id, error: "تعذر الحذف" });
+      continue;
+    }
+
+    deleted.push(id);
+    await revokeAllSessionsForSubject("student", String(id));
+    await recordAuditLog({
+      tenantId: scope.tenantId,
+      actor: session.name,
+      actorRole: session.role,
+      action: "student_delete",
+      entity: "student",
+      entityId: String(id),
+    });
+  }
+
+  return { success: true, deleted, failed };
 }

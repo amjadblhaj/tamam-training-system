@@ -130,6 +130,13 @@ export interface CreateStudentResult extends ActionResult {
   studentCode?: string;
 }
 
+export interface DeleteStudentsResponse {
+  success: boolean;
+  error?: string;
+  deleted?: number[];
+  failed?: { id: number; error: string }[];
+}
+
 export interface StudentSearchResult {
   id: number;
   full_name: string;
@@ -139,11 +146,12 @@ export interface StudentSearchResult {
   branch_name_ar: string;
 }
 
-export interface GrantPointsResult {
+export interface GrantPointsBatchResult {
   success: boolean;
   error?: string;
-  studentName?: string;
-  newBalance?: number;
+  grantedCount?: number;
+  totalPoints?: number;
+  failed?: { studentId: number; error: string }[];
 }
 
 // ---- Phase 5: advanced Excel granting wizard (name+phone, branch-aware) ----

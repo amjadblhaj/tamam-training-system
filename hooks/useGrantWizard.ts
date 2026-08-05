@@ -34,6 +34,7 @@ export function useGrantWizard({ isStaff, staffBranchId }: UseGrantWizardOptions
   const [points, setPoints] = useState(0);
   const [processResult, setProcessResult] = useState<ExcelBatchProcessResult | null>(null);
   const [selectedNewPhones, setSelectedNewPhones] = useState<Set<string>>(new Set());
+  const [excludedStudentIds, setExcludedStudentIds] = useState<Set<number>>(new Set());
   const [executeResult, setExecuteResult] = useState<ExcelBatchExecuteResult | null>(null);
 
   const resolvedReasonLabel = useMemo(() => {
@@ -46,6 +47,12 @@ export function useGrantWizard({ isStaff, staffBranchId }: UseGrantWizardOptions
     return processResult.newPhones.filter((p) => selectedNewPhones.has(p.phone));
   }, [processResult, selectedNewPhones]);
 
+  /** Existing-branch matches minus any the user unchecked in Step 5 — all included by default. */
+  const includedExistingMatches: ProcessedPhone[] = useMemo(() => {
+    if (!processResult) return [];
+    return processResult.existingMatches.filter((m) => !excludedStudentIds.has(m.studentId!));
+  }, [processResult, excludedStudentIds]);
+
   function canProceedFromStep(s: WizardStep): boolean {
     switch (s) {
       case 1:
@@ -57,7 +64,7 @@ export function useGrantWizard({ isStaff, staffBranchId }: UseGrantWizardOptions
       case 4:
         return processResult !== null;
       case 5:
-        return !!processResult && (processResult.existingMatches.length > 0 || approvedNewPhones.length > 0);
+        return !!processResult && (includedExistingMatches.length > 0 || approvedNewPhones.length > 0);
       default:
         return true;
     }
@@ -79,11 +86,31 @@ export function useGrantWizard({ isStaff, staffBranchId }: UseGrantWizardOptions
     else if (step === 2 && !isStaff) setStep(1);
   }
 
-  /** Moves to Step 5 with the freshly-processed batch; all new phones start checked, per spec. */
+  /** Moves to Step 5 with the freshly-processed batch; everyone starts included, per spec. */
   function applyProcessResult(result: ExcelBatchProcessResult) {
     setProcessResult(result);
     setSelectedNewPhones(new Set(result.newPhones.map((p) => p.phone)));
+    setExcludedStudentIds(new Set());
     setStep(5);
+  }
+
+  function toggleExcludeExisting(studentId: number) {
+    setExcludedStudentIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(studentId)) next.delete(studentId);
+      else next.add(studentId);
+      return next;
+    });
+  }
+
+  /** Select all / deselect all for the existing-students section. */
+  function toggleAllExistingExclusion() {
+    if (!processResult) return;
+    setExcludedStudentIds((prev) =>
+      prev.size === 0
+        ? new Set(processResult.existingMatches.map((m) => m.studentId!))
+        : new Set()
+    );
   }
 
   function toggleNewPhone(phone: string) {
@@ -115,6 +142,7 @@ export function useGrantWizard({ isStaff, staffBranchId }: UseGrantWizardOptions
     setPoints(0);
     setProcessResult(null);
     setSelectedNewPhones(new Set());
+    setExcludedStudentIds(new Set());
     setExecuteResult(null);
   }
 
@@ -135,6 +163,10 @@ export function useGrantWizard({ isStaff, staffBranchId }: UseGrantWizardOptions
     toggleNewPhone,
     toggleAllNewPhones,
     approvedNewPhones,
+    excludedStudentIds,
+    toggleExcludeExisting,
+    toggleAllExistingExclusion,
+    includedExistingMatches,
     executeResult,
     applyExecuteResult,
     canProceedFromStep,

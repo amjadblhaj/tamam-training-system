@@ -13,8 +13,10 @@ export function StepReview({ wizard }: { wizard: GrantWizardApi }) {
   if (!result) return null;
 
   const allNewSelected = result.newPhones.length > 0 && wizard.selectedNewPhones.size === result.newPhones.length;
+  const allExistingExcluded =
+    result.existingMatches.length > 0 && wizard.excludedStudentIds.size === result.existingMatches.length;
   const totalPointsToGrant =
-    result.existingMatches.reduce((sum, m) => sum + m.pointsToGrant, 0) +
+    wizard.includedExistingMatches.reduce((sum, m) => sum + m.pointsToGrant, 0) +
     wizard.approvedNewPhones.reduce((sum, m) => sum + m.pointsToGrant, 0);
 
   async function handleConfirm() {
@@ -25,7 +27,7 @@ export function StepReview({ wizard }: { wizard: GrantWizardApi }) {
         result!.branchId,
         result!.reason,
         result!.pointsPerOccurrence,
-        result!.existingMatches,
+        wizard.includedExistingMatches,
         wizard.approvedNewPhones
       );
       if (!response.success || !response.result) {
@@ -43,12 +45,21 @@ export function StepReview({ wizard }: { wizard: GrantWizardApi }) {
       {result.existingMatches.length > 0 && (
         <section>
           <h3 className="mb-2 font-semibold text-brand-text">
-            طلاب سيحصلون على النقاط ({result.existingMatches.length})
+            طلاب سيحصلون على النقاط ({wizard.includedExistingMatches.length})
           </h3>
+          <label className="mb-2 flex items-center gap-2 text-sm text-brand-text-2">
+            <input
+              type="checkbox"
+              checked={!allExistingExcluded}
+              onChange={wizard.toggleAllExistingExclusion}
+            />
+            تحديد الكل / إلغاء تحديد الكل
+          </label>
           <div className="overflow-x-auto rounded-xl border border-brand-border bg-brand-surface">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-brand-border text-right text-brand-text-2">
+                  <th className="px-4 py-2 font-medium"></th>
                   <th className="px-4 py-2 font-medium">الطالب</th>
                   <th className="px-4 py-2 font-medium">الكود</th>
                   <th className="px-4 py-2 font-medium">التكرار</th>
@@ -56,16 +67,32 @@ export function StepReview({ wizard }: { wizard: GrantWizardApi }) {
                 </tr>
               </thead>
               <tbody>
-                {result.existingMatches.map((m) => (
-                  <tr key={m.phone} className="border-b border-brand-border last:border-0">
-                    <td className="px-4 py-2 text-brand-text">{m.name}</td>
-                    <td className="px-4 py-2">
-                      <StudentCode code={m.studentCode ?? null} />
-                    </td>
-                    <td className="px-4 py-2 text-brand-text-2">× {m.occurrences}</td>
-                    <td className="px-4 py-2 font-semibold text-brand-green">+{m.pointsToGrant}</td>
-                  </tr>
-                ))}
+                {result.existingMatches.map((m) => {
+                  const excluded = wizard.excludedStudentIds.has(m.studentId!);
+                  return (
+                    <tr key={m.phone} className="border-b border-brand-border last:border-0">
+                      <td className="px-4 py-2">
+                        <input
+                          type="checkbox"
+                          checked={!excluded}
+                          onChange={() => wizard.toggleExcludeExisting(m.studentId!)}
+                        />
+                      </td>
+                      <td className={`px-4 py-2 ${excluded ? "text-brand-text-3 line-through" : "text-brand-text"}`}>
+                        {m.name}
+                      </td>
+                      <td className="px-4 py-2">
+                        <StudentCode code={m.studentCode ?? null} />
+                      </td>
+                      <td className="px-4 py-2 text-brand-text-2">× {m.occurrences}</td>
+                      <td
+                        className={`px-4 py-2 font-semibold ${excluded ? "text-brand-text-3 line-through" : "text-brand-green"}`}
+                      >
+                        +{m.pointsToGrant}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -140,9 +167,10 @@ export function StepReview({ wizard }: { wizard: GrantWizardApi }) {
       )}
 
       <div className="flex flex-wrap gap-4 rounded-xl border border-brand-border bg-brand-surface-2 p-4 text-sm text-brand-text">
-        <span>طلاب حاليون: {result.existingMatches.length}</span>
+        <span>طلاب حاليون: {wizard.includedExistingMatches.length}</span>
         <span>طلاب جدد سيُضافون: {wizard.approvedNewPhones.length}</span>
         <span>تم تجاهلهم: {result.otherBranchSkipped.length}</span>
+        <span>مستبعدون: {wizard.excludedStudentIds.size}</span>
         <span className="font-semibold text-brand-green">إجمالي النقاط: {totalPointsToGrant}</span>
       </div>
 

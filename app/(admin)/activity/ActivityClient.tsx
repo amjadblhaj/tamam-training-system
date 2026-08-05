@@ -9,12 +9,12 @@ import { SkeletonRows } from "@/components/shared/SkeletonRows";
 import { BranchBadge } from "@/components/shared/BranchBadge";
 import { StudentCode } from "@/components/students/StudentCode";
 import { PasswordConfirmModal } from "@/components/transactions/PasswordConfirmModal";
-import { BulkActionBar } from "@/components/transactions/BulkActionBar";
+import { BulkActionBar } from "@/components/shared/BulkActionBar";
 import { useToast } from "@/components/providers/toast-provider";
 import { useReadOnly } from "@/hooks/useReadOnly";
 import { useBulkSelection } from "@/hooks/useBulkSelection";
 import { canActOnTransaction } from "@/lib/auth/transactionPermissions";
-import { getActivityLog, getActivityLogForExport } from "./actions";
+import { getActivityLog, getActivityLogForExport, undoTransaction, bulkUndoTransactions } from "./actions";
 import type { Branch, ActivityLogRow, BulkUndoResponse } from "@/types";
 
 const TYPE_LABELS: Record<string, string> = {
@@ -24,12 +24,25 @@ const TYPE_LABELS: Record<string, string> = {
   manual: "يدوي",
   adjustment: "تعديل",
   reversal: "حركة عكسية",
+  registration: "تسجيل طالب جديد",
 };
 
 const inputClass =
   "rounded-lg border border-brand-border px-3 py-2 text-sm text-brand-text focus:border-brand-green focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-green/40";
 
+/** Registration notifications and reversal entries are never undoable — only real point movements are. */
+function isUndoable(row: ActivityLogRow): boolean {
+  return row.type !== "reversal" && row.type !== "registration" && !row.reversed;
+}
+
 function StatusBadge({ row }: { row: ActivityLogRow }) {
+  if (row.type === "registration") {
+    return (
+      <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-700">
+        تسجيل طالب جديد
+      </span>
+    );
+  }
   if (row.type === "reversal") {
     return (
       <span className="rounded-full bg-brand-surface-3 px-2 py-1 text-xs font-medium text-brand-text-2">
@@ -89,7 +102,7 @@ export function ActivityClient({
   const scope = { role: (isAdmin ? "admin" : "staff") as "admin" | "staff", branchId: staffBranchId };
 
   const undoableIds = (data?.rows ?? [])
-    .filter((r) => canEdit && r.type !== "reversal" && !r.reversed && canActOnTransaction(scope, r))
+    .filter((r) => canEdit && isUndoable(r) && canActOnTransaction(scope, r))
     .map((r) => r.id);
   const bulkSelection = useBulkSelection(undoableIds);
 
@@ -114,7 +127,14 @@ export function ActivityClient({
           النقاط: r.points,
           "التاريخ والوقت": new Date(r.created_at).toLocaleString("ar"),
           الموظف: r.granted_by,
-          الحالة: r.type === "reversal" ? "حركة عكسية" : r.reversed ? "تم التراجع" : "",
+          الحالة:
+            r.type === "registration"
+              ? "تسجيل طالب جديد"
+              : r.type === "reversal"
+                ? "حركة عكسية"
+                : r.reversed
+                  ? "تم التراجع"
+                  : "",
         }))
       );
       XLSX.utils.book_append_sheet(wb, ws, "Activity");
@@ -189,6 +209,7 @@ export function ActivityClient({
           <option value="redeem">استبدال</option>
           <option value="excel">استيراد إكسل</option>
           <option value="reversal">حركة عكسية</option>
+          <option value="registration">تسجيل طالب جديد</option>
         </select>
 
         <input
@@ -231,7 +252,13 @@ export function ActivityClient({
         />
       </div>
 
-      <BulkActionBar count={bulkSelection.count} onUndoClick={() => setBulkConfirmOpen(true)} />
+      <BulkActionBar
+        count={bulkSelection.count}
+        itemLabel="حركة"
+        actionLabel="تراجع عن المحدد"
+        icon={Undo2}
+        onActionClick={() => setBulkConfirmOpen(true)}
+      />
 
       <div className="overflow-x-auto rounded-xl border border-brand-border bg-brand-surface">
         {isLoading ? (
@@ -260,8 +287,7 @@ export function ActivityClient({
             </thead>
             <tbody>
               {data.rows.map((r) => {
-                const canUndo =
-                  canEdit && r.type !== "reversal" && !r.reversed && canActOnTransaction(scope, r);
+                const canUndo = canEdit && isUndoable(r) && canActOnTransaction(scope, r);
                 return (
                   <tr key={r.id} className="border-b border-brand-border last:border-0">
                     <td className="px-4 py-3">
@@ -279,12 +305,16 @@ export function ActivityClient({
                     <td className="px-4 py-3 text-brand-text">{r.student_name}</td>
                     <td className="px-4 py-3 text-brand-text-2">{r.branch_name_ar}</td>
                     <td className="px-4 py-3 text-brand-text-2">
-                      {TYPE_LABELS[r.type] ?? r.type} — {r.action}
+                      {r.type === "registration" ? r.action : `${TYPE_LABELS[r.type] ?? r.type} — ${r.action}`}
                     </td>
                     <td
-                      className={`px-4 py-3 font-semibold ${r.points >= 0 ? "text-brand-green" : "text-brand-orange"}`}
+                      className={
+                        r.type === "registration"
+                          ? "px-4 py-3 text-brand-text-3"
+                          : `px-4 py-3 font-semibold ${r.points >= 0 ? "text-brand-green" : "text-brand-orange"}`
+                      }
                     >
-                      {r.points >= 0 ? `+${r.points}` : r.points}
+                      {r.type === "registration" ? "—" : r.points >= 0 ? `+${r.points}` : r.points}
                     </td>
                     <td className="px-4 py-3 text-brand-text-2">
                       {new Date(r.created_at).toLocaleString("ar")}
@@ -337,18 +367,46 @@ export function ActivityClient({
 
       {undoTarget && (
         <PasswordConfirmModal
-          transaction={undoTarget}
+          title="تأكيد التراجع عن الحركة"
           onClose={() => setUndoTarget(null)}
+          onConfirm={(password) => undoTransaction(undoTarget.id, password)}
           onSuccess={handleUndoSuccess}
-        />
+          confirmLabel="تأكيد التراجع"
+          confirmingLabel="جاري التراجع..."
+        >
+          <div className="rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-sm">
+            <p className="font-semibold text-brand-text">
+              {undoTarget.student_name}
+              {undoTarget.student_code && (
+                <span className="mr-2 rounded bg-brand-surface-3 px-1.5 py-0.5 font-mono text-xs text-brand-text-2">
+                  {undoTarget.student_code}
+                </span>
+              )}
+            </p>
+            <p className="mt-1 text-brand-text-2">{undoTarget.action}</p>
+            <p className="mt-1 text-brand-text-2">{new Date(undoTarget.created_at).toLocaleString("ar")}</p>
+          </div>
+          <div className="rounded-lg border border-brand-orange bg-brand-orange-light px-3 py-2 text-sm text-brand-text">
+            {undoTarget.points >= 0
+              ? `سيتم خصم ${undoTarget.points} نقطة من رصيد الطالب وتسجيل حركة عكسية`
+              : `سيتم إضافة ${-undoTarget.points} نقطة إلى رصيد الطالب وتسجيل حركة عكسية`}
+          </div>
+        </PasswordConfirmModal>
       )}
 
       {bulkConfirmOpen && (
         <PasswordConfirmModal
-          bulkIds={Array.from(bulkSelection.selected)}
+          title="تأكيد التراجع عن الحركة"
           onClose={() => setBulkConfirmOpen(false)}
+          onConfirm={(password) => bulkUndoTransactions(Array.from(bulkSelection.selected), password)}
           onSuccess={handleBulkUndoSuccess}
-        />
+          confirmLabel="تأكيد التراجع"
+          confirmingLabel="جاري التراجع..."
+        >
+          <div className="rounded-lg border border-brand-orange bg-brand-orange-light px-3 py-2 text-sm text-brand-text">
+            سيتم التراجع عن {bulkSelection.selected.size} حركة وتسجيل حركة عكسية لكل واحدة منها
+          </div>
+        </PasswordConfirmModal>
       )}
     </div>
   );

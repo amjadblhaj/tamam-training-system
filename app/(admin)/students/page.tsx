@@ -7,5 +7,13 @@ export default async function StudentsPage() {
   const isStaff = session?.role === "staff";
   const staffBranchName = isStaff ? (branches.find((b) => b.id === session?.branchId)?.name_ar ?? "") : null;
 
-  return <StudentsClient branches={branches} isStaff={isStaff} staffBranchId={session?.branchId ?? null} staffBranchName={staffBranchName} />;
+  return (
+    <StudentsClient
+      branches={branches}
+      isAdmin={session?.role === "admin"}
+      isStaff={isStaff}
+      staffBranchId={session?.branchId ?? null}
+      staffBranchName={staffBranchName}
+    />
+  );
 }

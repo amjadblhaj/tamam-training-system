@@ -1,6 +1,7 @@
 import "server-only";
 import { getSupabaseAdmin } from "@/lib/supabase/server";
 import { hashPassword } from "@/lib/auth/password";
+import { recordStudentRegistrations } from "@/lib/students/registrationLog";
 import type { ProcessedPhone, ExcelBatchExecuteInput, ExcelBatchExecuteResult } from "@/types";
 
 const CONCURRENCY = 10;
@@ -31,6 +32,7 @@ export async function executeGrant(input: ExcelBatchExecuteInput): Promise<Excel
   const db = getSupabaseAdmin();
   const created: { name: string; phone: string; code: string }[] = [];
   const errors: string[] = [];
+  const registrationLogEntries: Parameters<typeof recordStudentRegistrations>[0] = [];
 
   const toGrant: ProcessedPhone[] = [...input.existingMatches];
 
@@ -69,7 +71,17 @@ export async function executeGrant(input: ExcelBatchExecuteInput): Promise<Excel
 
     created.push({ name: np.name, phone: np.phone, code: codeResult.code as string });
     toGrant.push({ ...np, studentId: newStudent.id, studentCode: codeResult.code as string });
+    registrationLogEntries.push({
+      tenantId: input.tenantId,
+      studentId: newStudent.id,
+      fullName: np.name,
+      studentCode: codeResult.code as string,
+      branchId: input.branchId,
+      grantedBy: input.grantedBy,
+    });
   }
+
+  await recordStudentRegistrations(registrationLogEntries);
 
   const granted: { name: string; points: number }[] = [];
 

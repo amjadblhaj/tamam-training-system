@@ -4,15 +4,15 @@ import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
-import { Search, User } from "lucide-react";
+import { Search, User, X } from "lucide-react";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import {
-  grantPointsSchema,
+  grantPointsFieldsSchema,
   GRANT_REASONS,
-  type GrantPointsFormInput,
-  type GrantPointsInput,
+  type GrantPointsFieldsFormInput,
+  type GrantPointsFieldsInput,
 } from "@/lib/validations/points";
-import { searchStudentsForGrant, grantPoints } from "@/app/(admin)/grant/actions";
+import { searchStudentsForGrant, grantPointsBatch } from "@/app/(admin)/grant/actions";
 import { useToast } from "@/components/providers/toast-provider";
 import { useReadOnly } from "@/hooks/useReadOnly";
 import { ReadOnlyPlaceholder } from "@/components/shared/ReadOnlyPlaceholder";
@@ -25,7 +25,7 @@ export function GrantForm() {
   const { canEdit } = useReadOnly();
   const [search, setSearch] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [selectedStudent, setSelectedStudent] = useState<StudentSearchResult | null>(null);
+  const [selectedStudents, setSelectedStudents] = useState<StudentSearchResult[]>([]);
   const debouncedSearch = useDebouncedValue(search, 300);
 
   const { data: results, isFetching: isSearching } = useQuery({
@@ -42,8 +42,8 @@ export function GrantForm() {
     setValue,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<GrantPointsFormInput, unknown, GrantPointsInput>({
-    resolver: zodResolver(grantPointsSchema),
+  } = useForm<GrantPointsFieldsFormInput, unknown, GrantPointsFieldsInput>({
+    resolver: zodResolver(grantPointsFieldsSchema),
     defaultValues: { reason: "course_registration" },
   });
 
@@ -52,7 +52,7 @@ export function GrantForm() {
   useEffect(() => {
     const preset = GRANT_REASONS.find((r) => r.value === reason);
     if (preset?.defaultPoints) {
-      setValue("points", preset.defaultPoints as unknown as GrantPointsFormInput["points"]);
+      setValue("points", preset.defaultPoints as unknown as GrantPointsFieldsFormInput["points"]);
     }
   }, [reason, setValue]);
 
@@ -60,21 +60,30 @@ export function GrantForm() {
     return <ReadOnlyPlaceholder message="منح النقاط غير متاح في وضع القراءة" />;
   }
 
-  function selectStudent(student: StudentSearchResult) {
-    setSelectedStudent(student);
-    setValue("studentId", student.id as unknown as GrantPointsFormInput["studentId"]);
-    setSearch(student.full_name);
+  function addStudent(student: StudentSearchResult) {
+    setSelectedStudents((prev) => (prev.some((s) => s.id === student.id) ? prev : [...prev, student]));
+    setSearch("");
     setDropdownOpen(false);
   }
 
+  function removeStudent(id: number) {
+    setSelectedStudents((prev) => prev.filter((s) => s.id !== id));
+  }
+
   const onSubmit = handleSubmit(async (values) => {
-    const result = await grantPoints(values);
+    const result = await grantPointsBatch(
+      selectedStudents.map((s) => s.id),
+      values
+    );
     if (!result.success) {
       toast.error(result.error ?? "حدث خطأ ما");
       return;
     }
-    toast.success(`تم منح النقاط لـ ${result.studentName}. الرصيد الجديد: ${result.newBalance}`);
-    setSelectedStudent(null);
+    toast.success(`تم منح ${values.points} نقطة لـ ${result.grantedCount ?? 0} طالب`);
+    if (result.failed && result.failed.length > 0) {
+      toast.error(`تعذر منح النقاط لـ ${result.failed.length} طالب`);
+    }
+    setSelectedStudents([]);
     setSearch("");
     reset({ reason: "course_registration" });
   });
@@ -83,14 +92,13 @@ export function GrantForm() {
     <div className="max-w-xl">
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="relative">
-          <label className="mb-1 block text-sm font-medium text-brand-text">الطالب</label>
+          <label className="mb-1 block text-sm font-medium text-brand-text">الطلاب</label>
           <div className="relative">
             <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-text-3" />
             <Input
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
-                setSelectedStudent(null);
                 setDropdownOpen(true);
               }}
               onFocus={() => setDropdownOpen(true)}
@@ -109,7 +117,7 @@ export function GrantForm() {
                 <li key={s.id}>
                   <button
                     type="button"
-                    onClick={() => selectStudent(s)}
+                    onClick={() => addStudent(s)}
                     className="flex w-full items-center justify-between px-3 py-2 text-right text-sm hover:bg-brand-surface-3"
                   >
                     <span className="flex items-center gap-2 text-brand-text">
@@ -133,13 +141,29 @@ export function GrantForm() {
               لا يوجد طلاب مطابقون
             </div>
           )}
-          {errors.studentId && <p className="mt-1 text-xs text-brand-orange">{errors.studentId.message}</p>}
         </div>
 
-        {selectedStudent && (
-          <div className="rounded-lg border border-brand-border bg-brand-green-light px-3 py-2 text-sm text-brand-text">
-            الطالب المحدد: <span className="font-semibold">{selectedStudent.full_name}</span> — الرصيد الحالي:{" "}
-            <span className="font-semibold text-brand-orange">{selectedStudent.points}</span>
+        {selectedStudents.length > 0 && (
+          <div>
+            <p className="mb-2 text-sm font-medium text-brand-text">تم تحديد {selectedStudents.length} طالب</p>
+            <div className="flex flex-wrap gap-2">
+              {selectedStudents.map((s) => (
+                <span
+                  key={s.id}
+                  className="flex items-center gap-1.5 rounded-full bg-brand-green-light px-3 py-1 text-sm text-brand-text"
+                >
+                  {s.full_name}
+                  <button
+                    type="button"
+                    onClick={() => removeStudent(s.id)}
+                    className="text-brand-text-2 hover:text-brand-orange"
+                    aria-label={`إزالة ${s.full_name}`}
+                  >
+                    <X size={14} />
+                  </button>
+                </span>
+              ))}
+            </div>
           </div>
         )}
 
@@ -176,8 +200,8 @@ export function GrantForm() {
           {errors.points && <p className="mt-1 text-xs text-brand-orange">{errors.points.message}</p>}
         </div>
 
-        <SubmitButton disabled={isSubmitting || !selectedStudent}>
-          {isSubmitting ? "جاري المنح..." : "منح النقاط"}
+        <SubmitButton disabled={isSubmitting || selectedStudents.length === 0}>
+          {isSubmitting ? "جاري المنح..." : "منح النقاط للمجموعة"}
         </SubmitButton>
       </form>
     </div>

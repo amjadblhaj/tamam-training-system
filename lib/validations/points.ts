@@ -8,9 +8,12 @@ export const GRANT_REASONS = [
   { value: "custom", label: "أخرى", defaultPoints: null, action: null },
 ] as const;
 
-export const grantPointsSchema = z
+// studentId(s) aren't a bound form field here — the form manages a
+// `selectedStudents` chip list outside react-hook-form, since it can hold
+// one or many students. This schema only validates the shared points/reason
+// fields; the server action validates the student id list separately.
+export const grantPointsFieldsSchema = z
   .object({
-    studentId: z.coerce.number().int().positive("يجب اختيار طالب"),
     points: z.coerce.number().int().min(1, "الحد الأدنى نقطة واحدة").max(9999, "الحد الأقصى 9999 نقطة"),
     reason: z.enum(["course_registration", "referral", "course_completion", "manual_reward", "custom"]),
     customReason: z.string().optional(),
@@ -20,5 +23,5 @@ export const grantPointsSchema = z
     path: ["customReason"],
   });
 
-export type GrantPointsInput = z.infer<typeof grantPointsSchema>;
-export type GrantPointsFormInput = z.input<typeof grantPointsSchema>;
+export type GrantPointsFieldsInput = z.infer<typeof grantPointsFieldsSchema>;
+export type GrantPointsFieldsFormInput = z.input<typeof grantPointsFieldsSchema>;
