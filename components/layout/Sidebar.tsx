@@ -32,7 +32,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "لوحة التحكم", icon: LayoutDashboard },
   { href: "/students", label: "الطلاب", icon: Users },
   { href: "/branches", label: "الفروع", icon: Building2 },
-  { href: "/registration-links", label: "روابط التسجيل", icon: Link2 },
+  { href: "/registration-links", label: "روابط الطلاب", icon: Link2 },
   { href: "/leaderboards", label: "لوحات المتصدرين", icon: Trophy },
   { href: "/grant", label: "منح النقاط", icon: Gift },
   { href: "/excel", label: "منح النقاط بالإكسل", icon: FileSpreadsheet },

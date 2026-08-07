@@ -25,13 +25,34 @@ export function RegistrationLinksClient({ initialData }: { initialData: BranchRe
     return origin ? `${origin}/register/${link.registration_token}` : "";
   }
 
+  const studentLoginUrl = origin ? `${origin}/student-login` : "";
+
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-brand-text">روابط التسجيل</h1>
-        <p className="mt-1 text-sm text-brand-text-2">شارك رابط الفرع مع الطلاب للتسجيل الذاتي</p>
+        <h1 className="text-2xl font-bold text-brand-text">روابط الطلاب</h1>
+        <p className="mt-1 text-sm text-brand-text-2">شارك رابط الدخول مع الطلاب، وروابط التسجيل الذاتي لكل فرع</p>
       </div>
 
+      <section className="mb-6 rounded-xl border border-brand-border bg-brand-surface p-5">
+        <h2 className="mb-1 font-semibold text-brand-text">رابط دخول الطلاب</h2>
+        <p className="mb-4 text-sm text-brand-text-2">يستخدمه الطلاب لتسجيل الدخول ومتابعة نقاطهم</p>
+        <div className="flex flex-wrap items-center gap-4">
+          <span className="max-w-full truncate rounded-lg bg-brand-surface-2 px-3 py-2 text-sm text-brand-text-2" dir="ltr">
+            {studentLoginUrl}
+          </span>
+          <button
+            onClick={() => copy("student-login", studentLoginUrl)}
+            className="flex items-center gap-1.5 text-sm text-brand-green hover:underline"
+          >
+            {copiedKey === "student-login" ? <Check size={16} /> : <Copy size={16} />}
+            {copiedKey === "student-login" ? "تم النسخ" : "نسخ"}
+          </button>
+          <QrCodeCell url={studentLoginUrl} fileName="student-login" />
+        </div>
+      </section>
+
+      <h2 className="mb-2 font-semibold text-brand-text">روابط التسجيل الذاتي حسب الفرع</h2>
       <div className="overflow-x-auto rounded-xl border border-brand-border bg-brand-surface">
         {links.length > 0 ? (
           <table className="w-full text-sm">

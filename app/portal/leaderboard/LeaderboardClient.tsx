@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { ArrowRight, Trophy } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { MedalRow, MedalCrown, getMedalStyle } from "@/components/leaderboard/MedalRow";
 import { getBranchLeaderboard, getOverallLeaderboard } from "../actions";
 import type { LeaderboardEntry } from "@/types";
 
@@ -67,26 +68,45 @@ export function LeaderboardClient({
 
         <div className="space-y-2">
           {board.length > 0 ? (
-            board.map((entry, index) => (
-              <div
-                key={entry.id}
-                className={`flex animate-in items-center gap-3 rounded-xl fade-in-0 slide-in-from-bottom-1 p-4 duration-300 ${
-                  entry.id === studentId ? "bg-brand-green/20 ring-2 ring-brand-green" : "bg-brand-dark-2"
-                }`}
-                style={{ animationDelay: `${index * 40}ms`, animationFillMode: "both" }}
-              >
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-dark text-sm font-bold text-brand-orange">
-                  {index === 0 ? <Trophy size={16} className="text-brand-orange" /> : index + 1}
-                </div>
-                <div className="flex-1">
-                  <p className="font-semibold text-brand-surface">{entry.full_name}</p>
-                  {tab === "overall" && entry.branch_name_ar && (
-                    <p className="text-xs text-brand-surface-2">{entry.branch_name_ar}</p>
-                  )}
-                </div>
-                <p className="font-bold text-brand-orange">{entry.points}</p>
-              </div>
-            ))
+            board.map((entry, index) => {
+              const rank = index + 1;
+              const medal = getMedalStyle(rank);
+              const isMe = entry.id === studentId;
+              return (
+                <MedalRow
+                  key={entry.id}
+                  rank={rank}
+                  fallbackClassName={`rounded-xl ${isMe ? "bg-brand-green/20 ring-2 ring-brand-green" : "bg-brand-dark-2"}`}
+                  className={`animate-in fade-in-0 slide-in-from-bottom-1 duration-300 ${isMe && medal ? "ring-2 ring-brand-green" : ""}`}
+                >
+                  <div
+                    className="flex items-center gap-3 p-4"
+                    style={{ animationDelay: `${index * 40}ms`, animationFillMode: "both" }}
+                  >
+                    <div
+                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
+                        medal ? "" : "bg-brand-dark text-brand-orange"
+                      }`}
+                      style={medal ? { backgroundColor: medal.color, color: "#FFFFFF" } : undefined}
+                    >
+                      {rank}
+                    </div>
+                    <div className="flex-1">
+                      <p className={`font-semibold ${medal ? "text-brand-dark" : "text-brand-surface"}`}>
+                        {entry.full_name}
+                      </p>
+                      {tab === "overall" && entry.branch_name_ar && (
+                        <p className={`text-xs ${medal ? "text-brand-text-2" : "text-brand-surface-2"}`}>
+                          {entry.branch_name_ar}
+                        </p>
+                      )}
+                    </div>
+                    <MedalCrown rank={rank} size={20} />
+                    <p className={`font-bold ${medal ? "text-brand-text" : "text-brand-orange"}`}>{entry.points}</p>
+                  </div>
+                </MedalRow>
+              );
+            })
           ) : (
             <p className="text-sm text-brand-surface-2">لا يوجد طلاب بعد</p>
           )}

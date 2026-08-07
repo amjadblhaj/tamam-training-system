@@ -6,9 +6,9 @@ import type { ExcelBatchProcessResult, ExcelBatchExecuteResult, ProcessedPhone }
 export type WizardStep = 1 | 2 | 3 | 4 | 5 | "result";
 
 export const EXCEL_WIZARD_REASONS = [
-  { value: "course_registration", label: "التسجيل في كورس" },
+  { value: "course_registration", label: "التسجيل في كورس شهري" },
   { value: "monthly_exam", label: "مشاركة في اختبار شهري" },
-  { value: "other", label: "سبب آخر" },
+  { value: "other", label: "أخرى" },
 ] as const;
 
 export type ExcelWizardReasonValue = (typeof EXCEL_WIZARD_REASONS)[number]["value"];

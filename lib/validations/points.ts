@@ -1,10 +1,13 @@
 import { z } from "zod";
 
 export const GRANT_REASONS = [
-  { value: "course_registration", label: "تسجيل في دورة", defaultPoints: 100, action: "تسجيل في دورة" },
-  { value: "referral", label: "إحالة طالب جديد", defaultPoints: 50, action: "إحالة طالب جديد" },
-  { value: "course_completion", label: "إكمال دورة", defaultPoints: null, action: "إكمال دورة" },
-  { value: "manual_reward", label: "مكافأة يدوية", defaultPoints: null, action: "مكافأة يدوية" },
+  {
+    value: "course_registration",
+    label: "التسجيل في كورس شهري",
+    defaultPoints: 100,
+    action: "التسجيل في كورس شهري",
+  },
+  { value: "monthly_exam", label: "مشاركة في اختبار شهري", defaultPoints: null, action: "مشاركة في اختبار شهري" },
   { value: "custom", label: "أخرى", defaultPoints: null, action: null },
 ] as const;
 
@@ -15,7 +18,7 @@ export const GRANT_REASONS = [
 export const grantPointsFieldsSchema = z
   .object({
     points: z.coerce.number().int().min(1, "الحد الأدنى نقطة واحدة").max(9999, "الحد الأقصى 9999 نقطة"),
-    reason: z.enum(["course_registration", "referral", "course_completion", "manual_reward", "custom"]),
+    reason: z.enum(["course_registration", "monthly_exam", "custom"]),
     customReason: z.string().optional(),
   })
   .refine((data) => data.reason !== "custom" || (data.customReason && data.customReason.trim().length > 0), {

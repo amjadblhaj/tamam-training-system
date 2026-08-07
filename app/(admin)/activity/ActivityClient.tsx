@@ -232,24 +232,36 @@ export function ActivityClient({
           className={inputClass}
         />
 
-        <input
-          type="date"
-          value={dateFrom}
-          onChange={(e) => {
-            setDateFrom(e.target.value);
-            setPage(1);
-          }}
-          className={inputClass}
-        />
-        <input
-          type="date"
-          value={dateTo}
-          onChange={(e) => {
-            setDateTo(e.target.value);
-            setPage(1);
-          }}
-          className={inputClass}
-        />
+        <div className="flex items-center gap-1.5">
+          <label htmlFor="activity-date-from" className="text-sm text-brand-text-2">
+            من
+          </label>
+          <input
+            id="activity-date-from"
+            type="date"
+            value={dateFrom}
+            onChange={(e) => {
+              setDateFrom(e.target.value);
+              setPage(1);
+            }}
+            className={inputClass}
+          />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <label htmlFor="activity-date-to" className="text-sm text-brand-text-2">
+            إلى
+          </label>
+          <input
+            id="activity-date-to"
+            type="date"
+            value={dateTo}
+            onChange={(e) => {
+              setDateTo(e.target.value);
+              setPage(1);
+            }}
+            className={inputClass}
+          />
+        </div>
       </div>
 
       <BulkActionBar

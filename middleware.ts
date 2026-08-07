@@ -59,7 +59,7 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   const token = request.cookies.get(SESSION_COOKIE)?.value;
   const session = token ? await verifySessionToken(token) : null;
 
-  if (pathname === "/login") {
+  if (pathname === "/login" || pathname === "/student-login") {
     // See the matching comment in the Super Admin branch above.
     if (session && (await isSessionValid(session.sessionId))) {
       return NextResponse.redirect(new URL(homeFor(session.role), request.url));
@@ -98,6 +98,7 @@ export const config = {
   matcher: [
     "/",
     "/login",
+    "/student-login",
     "/dashboard/:path*",
     "/students/:path*",
     "/branches/:path*",

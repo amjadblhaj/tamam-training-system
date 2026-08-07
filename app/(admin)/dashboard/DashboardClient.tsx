@@ -7,6 +7,7 @@ import { MetricCard } from "@/components/shared/MetricCard";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { SkeletonRows } from "@/components/shared/SkeletonRows";
 import { BranchBadge } from "@/components/shared/BranchBadge";
+import { MedalRow, MedalCrown } from "@/components/leaderboard/MedalRow";
 import { getDashboardMetrics, getTopStudents, getRecentActivity } from "./actions";
 import type { Branch } from "@/types";
 
@@ -88,17 +89,22 @@ export function DashboardClient({ branches, isStaff, staffBranchId, staffBranchN
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="rounded-xl border border-brand-border bg-brand-surface p-5">
-          <h2 className="mb-4 font-semibold text-brand-text">أفضل 5 طلاب</h2>
+          <h2 className="mb-4 font-semibold text-brand-text">أفضل 10 طلاب</h2>
           {topStudentsQuery.isLoading ? (
             <div className="space-y-3"><SkeletonRows count={3} height="h-5" /></div>
           ) : topStudentsQuery.data && topStudentsQuery.data.length > 0 ? (
-            <ul className="space-y-3">
+            <ul className="space-y-2">
               {topStudentsQuery.data.map((s, i) => (
-                <li key={s.id} className="flex items-center justify-between text-sm">
-                  <span className="text-brand-text">
-                    {i + 1}. {s.full_name} <span className="text-brand-text-3">({s.branch_name_ar})</span>
-                  </span>
-                  <span className="font-semibold text-brand-orange">{s.points}</span>
+                <li key={s.id}>
+                  <MedalRow rank={i + 1} fallbackClassName="border border-transparent">
+                    <div className="flex items-center gap-2 px-3 py-2 text-sm">
+                      <MedalCrown rank={i + 1} size={16} />
+                      <span className="flex-1 text-brand-text">
+                        {i + 1}. {s.full_name} <span className="text-brand-text-3">({s.branch_name_ar})</span>
+                      </span>
+                      <span className="font-semibold text-brand-orange">{s.points}</span>
+                    </div>
+                  </MedalRow>
                 </li>
               ))}
             </ul>

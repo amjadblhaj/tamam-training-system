@@ -64,7 +64,7 @@ export async function getTopStudents(branchId: number | null): Promise<TopStuden
     .eq("tenant_id", scope.tenantId)
     .eq("active", true)
     .order("points", { ascending: false })
-    .limit(5);
+    .limit(10);
   if (effectiveBranchId) query = query.eq("branch_id", effectiveBranchId);
   const { data } = await query;
 

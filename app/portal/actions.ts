@@ -47,11 +47,16 @@ export async function getPortalBalance(): Promise<number> {
 export async function getPortalTransactions(): Promise<PortalTransaction[]> {
   const session = await requireStudentSession();
   const db = getSupabaseAdmin();
+  // student_visible = false covers both halves of an undo (the original
+  // grant and its reversal entry), so an undone grant reads to the student
+  // as if it never happened. The staff/admin activity log is deliberately
+  // unfiltered and still shows the full trail.
   const { data } = await db
     .from("points_log")
     .select("id, action, points, created_at")
     .eq("student_id", Number(session.id))
     .eq("tenant_id", session.tenantId)
+    .eq("student_visible", true)
     .order("created_at", { ascending: false })
     .limit(20);
   return data ?? [];
