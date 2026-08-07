@@ -29,11 +29,14 @@ export function AddStaffModal({ branches, onClose }: { branches: Branch[]; onClo
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<CreateStaffInput>({
     resolver: zodResolver(createStaffSchema),
     defaultValues: { role: "staff" },
   });
+
+  const role = watch("role");
 
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null);
@@ -62,9 +65,17 @@ export function AddStaffModal({ branches, onClose }: { branches: Branch[]; onClo
             <option value="admin">مدير</option>
           </select>
         </Field>
-        <Field label="الفرع (اختياري)" error={errors.branchId?.message}>
+        <Field label={role === "admin" ? "الفرع (اختياري)" : "الفرع"} error={errors.branchId?.message}>
           <select {...register("branchId")} defaultValue="" className={INPUT_CLASS}>
-            <option value="">بدون فرع محدد</option>
+            {/* A staff member must be scoped to a branch — the placeholder is
+                unselectable for them, while an admin may cover all branches. */}
+            {role === "admin" ? (
+              <option value="">بدون فرع محدد (كل الفروع)</option>
+            ) : (
+              <option value="" disabled>
+                اختر الفرع...
+              </option>
+            )}
             {branches.map((b) => (
               <option key={b.id} value={b.id}>
                 {b.name_ar}

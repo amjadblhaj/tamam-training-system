@@ -19,6 +19,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { getPendingRedemptionsCount } from "@/app/(admin)/redemptions/actions";
+import { useReadOnly } from "@/hooks/useReadOnly";
 import type { SessionRole } from "@/lib/auth/session";
 
 interface NavItem {
@@ -54,6 +55,10 @@ export function Sidebar({ role, open, onNavigate }: SidebarProps) {
   const pathname = usePathname();
   const items = NAV_ITEMS.filter((item) => !item.adminOnly || role === "admin");
 
+  // Each tenant sees their own name here rather than a hardcoded one — this
+  // reads the same cached `tenant-status` query AdminShell already seeds.
+  const { academyName } = useReadOnly();
+
   const { data: pendingRedemptions = 0 } = useQuery({
     queryKey: ["pending-redemptions-count"],
     queryFn: () => getPendingRedemptionsCount(),
@@ -68,7 +73,7 @@ export function Sidebar({ role, open, onNavigate }: SidebarProps) {
     >
       <div className="mb-8 px-2">
         <Image src="/logo-full.png" alt="تمام" width={140} height={70} className="h-auto w-[140px]" priority />
-        <p className="mt-1 text-xs text-brand-surface-2">أكاديمية قرار للتدريب والتطوير</p>
+        <p className="mt-1 text-xs text-brand-surface-2">{academyName ?? "مركز تمام التعليمي"}</p>
       </div>
       <ul className="flex flex-1 flex-col gap-1">
         {items.map((item) => {

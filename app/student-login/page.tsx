@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -61,13 +60,6 @@ export default function StudentLoginPage() {
             {isSubmitting ? "جاري الدخول..." : "تسجيل الدخول"}
           </SubmitButton>
         </form>
-
-        <p className="mt-6 text-center text-xs text-brand-text-3">
-          هل أنت موظف؟{" "}
-          <Link href="/login" className="text-brand-green hover:underline">
-            دخول الموظفين
-          </Link>
-        </p>
       </div>
     </main>
   );

@@ -12,7 +12,7 @@ const cairo = Cairo({
 
 export const metadata: Metadata = {
   title: process.env.NEXT_PUBLIC_APP_NAME ?? "تمام",
-  description: "نظام تمام لنقاط الولاء والمكافآت — أكاديمية قرار للتدريب والتطوير",
+  description: "نظام تمام لنقاط الولاء والمكافآت — مركز تمام التعليمي",
 };
 
 export default function RootLayout({
