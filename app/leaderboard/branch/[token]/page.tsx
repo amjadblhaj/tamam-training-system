@@ -34,13 +34,7 @@ export default async function PublicBranchLeaderboardPage({ params }: { params: 
     <main className="min-h-screen bg-brand-dark px-4 py-8 text-brand-surface">
       <div className="mx-auto max-w-md">
         <div className="mb-6 text-center">
-          <Image
-            src="/logo-mark.png"
-            alt="تمام"
-            width={90}
-            height={33}
-            className="mx-auto mb-3 h-auto w-[90px]"
-          />
+          <Image src="/logo-full.png" alt="تمام" width={130} height={48} className="mx-auto mb-3 h-12 w-auto" />
           <h1 className="text-xl font-bold text-brand-green">لوحة متصدري {branch.name_ar}</h1>
           <p className="mt-1 text-sm text-brand-surface-2">{academyName}</p>
         </div>

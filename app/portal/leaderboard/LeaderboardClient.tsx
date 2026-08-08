@@ -1,70 +1,42 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import Image from "next/image";
 import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
 import { ArrowRight } from "lucide-react";
 import { MedalRow, MedalCrown, getMedalStyle } from "@/components/leaderboard/MedalRow";
-import { getBranchLeaderboard, getOverallLeaderboard } from "../actions";
+import { getBranchLeaderboard } from "../actions";
 import type { LeaderboardEntry } from "@/types";
-
-type Tab = "branch" | "overall";
 
 export function LeaderboardClient({
   studentId,
+  branchName,
   initialBranchBoard,
-  initialOverallBoard,
 }: {
   studentId: number;
+  branchName: string | null;
   initialBranchBoard: LeaderboardEntry[];
-  initialOverallBoard: LeaderboardEntry[];
 }) {
-  const [tab, setTab] = useState<Tab>("branch");
-
-  const { data: branchBoard = initialBranchBoard } = useQuery({
+  // Students only ever see their own branch — no all-branches tab, no branch picker.
+  const { data: board = initialBranchBoard } = useQuery({
     queryKey: ["portal-leaderboard-branch"],
     queryFn: () => getBranchLeaderboard(),
     initialData: initialBranchBoard,
   });
 
-  const { data: overallBoard = initialOverallBoard } = useQuery({
-    queryKey: ["portal-leaderboard-overall"],
-    queryFn: () => getOverallLeaderboard(),
-    initialData: initialOverallBoard,
-  });
-
-  const board = tab === "branch" ? branchBoard : overallBoard;
-
   return (
     <main className="min-h-screen bg-brand-dark px-4 py-8 text-brand-surface">
       <div className="mx-auto max-w-md">
         <div className="mb-6 flex items-center gap-3">
-          <Link href="/portal" className="text-brand-surface-2">
+          <Link href="/portal" className="text-brand-surface" aria-label="رجوع">
             <ArrowRight size={20} />
           </Link>
-          <h1 className="text-xl font-bold text-brand-green">لوحة المتصدرين</h1>
+          <Image src="/logo-full.png" alt="تمام" width={120} height={44} className="h-11 w-auto" priority />
         </div>
 
-        <div className="mb-6 grid grid-cols-2 gap-2 rounded-lg bg-brand-dark-2 p-1">
-          <button
-            type="button"
-            onClick={() => setTab("branch")}
-            className={`rounded-md py-2 text-sm font-medium transition-colors ${
-              tab === "branch" ? "bg-brand-green text-brand-dark" : "text-brand-surface-2"
-            }`}
-          >
-            فرعي
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab("overall")}
-            className={`rounded-md py-2 text-sm font-medium transition-colors ${
-              tab === "overall" ? "bg-brand-green text-brand-dark" : "text-brand-surface-2"
-            }`}
-          >
-            الكل
-          </button>
-        </div>
+        <h1 className="mb-6 text-xl font-bold text-brand-green">
+          {branchName ? `المتصدرون — ${branchName}` : "لوحة المتصدرين"}
+        </h1>
 
         <div className="space-y-2">
           {board.length > 0 ? (
@@ -91,16 +63,9 @@ export function LeaderboardClient({
                     >
                       {rank}
                     </div>
-                    <div className="flex-1">
-                      <p className={`font-semibold ${medal ? "text-brand-dark" : "text-brand-surface"}`}>
-                        {entry.full_name}
-                      </p>
-                      {tab === "overall" && entry.branch_name_ar && (
-                        <p className={`text-xs ${medal ? "text-brand-text-2" : "text-brand-surface-2"}`}>
-                          {entry.branch_name_ar}
-                        </p>
-                      )}
-                    </div>
+                    <p className={`flex-1 font-semibold ${medal ? "text-brand-dark" : "text-brand-surface"}`}>
+                      {entry.full_name}
+                    </p>
                     <MedalCrown rank={rank} size={20} />
                     <p className={`font-bold ${medal ? "text-brand-text" : "text-brand-orange"}`}>{entry.points}</p>
                   </div>
@@ -108,7 +73,7 @@ export function LeaderboardClient({
               );
             })
           ) : (
-            <p className="text-sm text-brand-surface-2">لا يوجد طلاب بعد</p>
+            <p className="text-sm text-brand-surface">لا يوجد طلاب بعد</p>
           )}
         </div>
       </div>

@@ -1,8 +1,7 @@
 "use client";
 
 import { useReadOnly } from "@/hooks/useReadOnly";
-
-const WHATSAPP_NUMBER = "218943643738";
+import { SUPPORT_WHATSAPP_NUMBER } from "@/lib/constants";
 
 export function TrialBanner() {
   const { status, trialEndsAt } = useReadOnly();
@@ -27,7 +26,7 @@ export function TrialBanner() {
         </strong>
       </span>
       <a
-        href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("أريد الاشتراك في مزايا")}`}
+        href={`https://wa.me/${SUPPORT_WHATSAPP_NUMBER}?text=${encodeURIComponent("أريد الاشتراك في مزايا")}`}
         target="_blank"
         rel="noopener noreferrer"
         className={`whitespace-nowrap rounded-md px-3.5 py-1.5 text-xs font-bold text-white transition-opacity hover:opacity-90 ${

@@ -13,6 +13,13 @@ export const REDEMPTIONS_PAGE_SIZE = 20;
 /** Bounds how many transactions can be undone in a single bulk-undo request. */
 export const MAX_BULK_UNDO = 100;
 
+/**
+ * Support/sales WhatsApp contact, in international format (Libya, +218).
+ * `SUPPORT_PHONE_LOCAL` is the human-readable local form shown in the UI.
+ */
+export const SUPPORT_WHATSAPP_NUMBER = "218943643738";
+export const SUPPORT_PHONE_LOCAL = "0943643738";
+
 /** How long a "copied!" affordance stays visible before reverting. */
 export const COPY_FEEDBACK_MS = 2000;
 

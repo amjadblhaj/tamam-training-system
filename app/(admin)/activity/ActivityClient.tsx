@@ -22,27 +22,36 @@ const TYPE_LABELS: Record<string, string> = {
   redeem: "استبدال",
   excel: "استيراد إكسل",
   manual: "يدوي",
-  adjustment: "تعديل",
+  adjustment: "استرجاع",
   reversal: "حركة عكسية",
   registration: "تسجيل طالب جديد",
+  redeem_approved: "تسليم مكافأة",
 };
 
 const inputClass =
   "rounded-lg border border-brand-border px-3 py-2 text-sm text-brand-text focus:border-brand-green focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-green/40";
 
-/** Registration notifications and reversal entries are never undoable — only real point movements are. */
+/** Zero-point entries that only announce something — no points figure to show. */
+function isNotification(row: ActivityLogRow): boolean {
+  return row.type === "registration" || row.type === "redeem_approved";
+}
+
+/**
+ * Notification-style entries carry no point movement of their own, so there's
+ * nothing to reverse: registrations, reversals, and reward-delivery entries.
+ */
 function isUndoable(row: ActivityLogRow): boolean {
-  return row.type !== "reversal" && row.type !== "registration" && !row.reversed;
+  return (
+    row.type !== "reversal" &&
+    row.type !== "registration" &&
+    row.type !== "redeem_approved" &&
+    !row.reversed
+  );
 }
 
 function StatusBadge({ row }: { row: ActivityLogRow }) {
-  if (row.type === "registration") {
-    return (
-      <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-700">
-        تسجيل طالب جديد
-      </span>
-    );
-  }
+  // Order matters: an entry that has been undone should read as "تم التراجع"
+  // first and foremost, ahead of whatever kind of entry it originally was.
   if (row.type === "reversal") {
     return (
       <span className="rounded-full bg-brand-surface-3 px-2 py-1 text-xs font-medium text-brand-text-2">
@@ -54,6 +63,32 @@ function StatusBadge({ row }: { row: ActivityLogRow }) {
     return (
       <span className="rounded-full bg-brand-orange-light px-2 py-1 text-xs font-medium text-brand-orange">
         تم التراجع
+      </span>
+    );
+  }
+  if (row.type === "registration") {
+    return (
+      <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-700">
+        تسجيل طالب جديد
+      </span>
+    );
+  }
+  if (row.type === "redeem_approved") {
+    return (
+      <span className="rounded-full bg-brand-green-light px-2 py-1 text-xs font-medium text-brand-green-dark">
+        تسليم مكافأة
+      </span>
+    );
+  }
+  if (row.type === "adjustment") {
+    return (
+      <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-700">استرجاع</span>
+    );
+  }
+  if (row.type === "redeem") {
+    return (
+      <span className="rounded-full bg-brand-orange-light px-2 py-1 text-xs font-medium text-brand-orange">
+        استبدال
       </span>
     );
   }
@@ -128,13 +163,11 @@ export function ActivityClient({
           "التاريخ والوقت": new Date(r.created_at).toLocaleString("ar"),
           الموظف: r.granted_by,
           الحالة:
-            r.type === "registration"
-              ? "تسجيل طالب جديد"
-              : r.type === "reversal"
-                ? "حركة عكسية"
-                : r.reversed
-                  ? "تم التراجع"
-                  : "",
+            r.type === "reversal"
+              ? "حركة عكسية"
+              : r.reversed
+                ? "تم التراجع"
+                : (TYPE_LABELS[r.type] ?? ""),
         }))
       );
       XLSX.utils.book_append_sheet(wb, ws, "Activity");
@@ -208,6 +241,8 @@ export function ActivityClient({
           <option value="grant">منح</option>
           <option value="redeem">استبدال</option>
           <option value="excel">استيراد إكسل</option>
+          <option value="redeem_approved">تسليم مكافأة</option>
+          <option value="adjustment">استرجاع</option>
           <option value="reversal">حركة عكسية</option>
           <option value="registration">تسجيل طالب جديد</option>
         </select>
@@ -317,16 +352,16 @@ export function ActivityClient({
                     <td className="px-4 py-3 text-brand-text">{r.student_name}</td>
                     <td className="px-4 py-3 text-brand-text-2">{r.branch_name_ar}</td>
                     <td className="px-4 py-3 text-brand-text-2">
-                      {r.type === "registration" ? r.action : `${TYPE_LABELS[r.type] ?? r.type} — ${r.action}`}
+                      {isNotification(r) ? r.action : `${TYPE_LABELS[r.type] ?? r.type} — ${r.action}`}
                     </td>
                     <td
                       className={
-                        r.type === "registration"
+                        isNotification(r)
                           ? "px-4 py-3 text-brand-text-3"
                           : `px-4 py-3 font-semibold ${r.points >= 0 ? "text-brand-green" : "text-brand-orange"}`
                       }
                     >
-                      {r.type === "registration" ? "—" : r.points >= 0 ? `+${r.points}` : r.points}
+                      {isNotification(r) ? "—" : r.points >= 0 ? `+${r.points}` : r.points}
                     </td>
                     <td className="px-4 py-3 text-brand-text-2">
                       {new Date(r.created_at).toLocaleString("ar")}

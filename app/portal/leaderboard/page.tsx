@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/get-session";
-import { getBranchLeaderboard, getOverallLeaderboard } from "../actions";
+import { getBranchLeaderboard, getPortalBranchName } from "../actions";
 import { LeaderboardClient } from "./LeaderboardClient";
 
 export default async function LeaderboardPage() {
@@ -9,13 +9,13 @@ export default async function LeaderboardPage() {
     redirect("/login");
   }
 
-  const [branchBoard, overallBoard] = await Promise.all([getBranchLeaderboard(), getOverallLeaderboard()]);
+  const [branchBoard, branchName] = await Promise.all([getBranchLeaderboard(), getPortalBranchName()]);
 
   return (
     <LeaderboardClient
       studentId={Number(session.id)}
+      branchName={branchName}
       initialBranchBoard={branchBoard}
-      initialOverallBoard={overallBoard}
     />
   );
 }

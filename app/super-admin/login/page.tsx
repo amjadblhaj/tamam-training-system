@@ -32,7 +32,7 @@ export default function SuperAdminLoginPage() {
     <main className="flex min-h-screen items-center justify-center bg-brand-dark px-4">
       <div className="w-full max-w-md rounded-2xl bg-brand-surface p-8 shadow-xl">
         <div className="mb-6 text-center">
-          <h1 className="text-3xl font-bold text-brand-orange">مزايا</h1>
+          <h1 className="text-3xl font-bold text-brand-orange">Super</h1>
           <p className="mt-1 text-sm text-brand-text-2">لوحة تحكم المشرف العام</p>
         </div>
 

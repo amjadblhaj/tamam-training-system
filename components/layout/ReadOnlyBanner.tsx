@@ -1,8 +1,7 @@
 "use client";
 
 import { useReadOnly } from "@/hooks/useReadOnly";
-
-const WHATSAPP_NUMBER = "218943643738";
+import { SUPPORT_WHATSAPP_NUMBER } from "@/lib/constants";
 
 export function ReadOnlyBanner() {
   const { readOnly, message, status } = useReadOnly();
@@ -29,7 +28,7 @@ export function ReadOnlyBanner() {
         </div>
       </div>
       <a
-        href={`https://wa.me/${WHATSAPP_NUMBER}`}
+        href={`https://wa.me/${SUPPORT_WHATSAPP_NUMBER}`}
         target="_blank"
         rel="noopener noreferrer"
         className={`whitespace-nowrap rounded-lg px-4 py-2 text-xs font-bold text-white transition-opacity hover:opacity-90 ${

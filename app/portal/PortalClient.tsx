@@ -37,7 +37,9 @@ export function PortalClient({
     queryClient.setQueryData(["tenant-status"], initialTenantStatus);
     seeded.current = true;
   }
-  const { canEdit } = useReadOnly();
+  // academyName comes from the tenant record (seeded into the query cache
+  // below), so each academy's students see their own name.
+  const { canEdit, academyName } = useReadOnly();
   const [celebrating, setCelebrating] = useState(false);
 
   const { data: balance = initialBalance } = useQuery({
@@ -88,8 +90,9 @@ export function PortalClient({
       <div className="mx-auto max-w-md">
         <div className="mb-8 flex items-center justify-between">
           <div>
-            <Image src="/logo-mark.png" alt="تمام" width={90} height={33} className="h-auto w-[90px]" priority />
-            <p className="mt-1 text-sm text-brand-surface-2">مرحبًا، {studentName}</p>
+            <Image src="/logo-full.png" alt="تمام" width={130} height={48} className="h-12 w-auto" priority />
+            {academyName && <p className="mt-1 text-xs text-brand-surface-2">{academyName}</p>}
+            <p className="mt-1 text-sm text-brand-surface">مرحبًا، {studentName}</p>
             {studentCode && (
               <div className="mt-1">
                 <StudentCode code={studentCode} />

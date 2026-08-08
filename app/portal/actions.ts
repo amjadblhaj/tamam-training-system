@@ -3,7 +3,6 @@
 import { getSupabaseAdmin } from "@/lib/supabase/server";
 import { getSession } from "@/lib/auth/get-session";
 import { assertTenantCanWrite } from "@/lib/tenant/resolve-status";
-import { relationValue } from "@/lib/supabase/relation";
 import type { PortalReward, PortalTransaction, RedeemResult, LeaderboardEntry } from "@/types";
 import type { SessionPayload } from "@/lib/auth/session";
 
@@ -62,6 +61,10 @@ export async function getPortalTransactions(): Promise<PortalTransaction[]> {
   return data ?? [];
 }
 
+/**
+ * A student only ever sees their own branch's board — there is deliberately
+ * no all-branches view in the portal (staff/admin keep theirs).
+ */
 export async function getBranchLeaderboard(): Promise<LeaderboardEntry[]> {
   const session = await requireStudentSession();
   const db = getSupabaseAdmin();
@@ -76,23 +79,17 @@ export async function getBranchLeaderboard(): Promise<LeaderboardEntry[]> {
   return data ?? [];
 }
 
-export async function getOverallLeaderboard(): Promise<LeaderboardEntry[]> {
+/** The student's own branch name, for the leaderboard heading. */
+export async function getPortalBranchName(): Promise<string | null> {
   const session = await requireStudentSession();
   const db = getSupabaseAdmin();
   const { data } = await db
-    .from("students")
-    .select("id, full_name, points, branches(name_ar)")
+    .from("branches")
+    .select("name_ar")
+    .eq("id", session.branchId)
     .eq("tenant_id", session.tenantId)
-    .eq("active", true)
-    .order("points", { ascending: false })
-    .limit(10);
-
-  return (data ?? []).map((s) => ({
-    id: s.id,
-    full_name: s.full_name,
-    points: s.points,
-    branch_name_ar: relationValue<string>(s.branches, "name_ar"),
-  }));
+    .maybeSingle();
+  return data?.name_ar ?? null;
 }
 
 export async function redeemReward(rewardId: number): Promise<RedeemResult> {

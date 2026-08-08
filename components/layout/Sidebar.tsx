@@ -16,10 +16,12 @@ import {
   Link2,
   Trophy,
   PackageCheck,
+  MessageCircle,
   type LucideIcon,
 } from "lucide-react";
 import { getPendingRedemptionsCount } from "@/app/(admin)/redemptions/actions";
 import { useReadOnly } from "@/hooks/useReadOnly";
+import { SUPPORT_WHATSAPP_NUMBER, SUPPORT_PHONE_LOCAL } from "@/lib/constants";
 import type { SessionRole } from "@/lib/auth/session";
 
 interface NavItem {
@@ -101,6 +103,16 @@ export function Sidebar({ role, open, onNavigate }: SidebarProps) {
           );
         })}
       </ul>
+
+      <a
+        href={`https://wa.me/${SUPPORT_WHATSAPP_NUMBER}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-2 flex items-center gap-2 rounded-lg px-3 py-2.5 text-xs text-brand-surface-2 transition-colors hover:bg-brand-dark-2 hover:text-brand-surface"
+      >
+        <MessageCircle size={15} className="shrink-0" />
+        <span>التواصل: {SUPPORT_PHONE_LOCAL}</span>
+      </a>
     </nav>
   );
 }

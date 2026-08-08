@@ -22,7 +22,7 @@ export function SuperAdminShell({ username, logoutAction, children }: SuperAdmin
     <div className="flex min-h-screen bg-brand-surface-2">
       <nav className="flex h-screen w-64 shrink-0 flex-col bg-brand-dark px-4 py-6">
         <div className="mb-8 px-2">
-          <h1 className="text-2xl font-bold text-brand-orange">مزايا</h1>
+          <h1 className="text-2xl font-bold text-brand-orange">Super</h1>
           <p className="text-xs text-brand-surface-2">لوحة تحكم المشرف العام</p>
         </div>
         <ul className="flex flex-1 flex-col gap-1">
